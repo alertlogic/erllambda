@@ -83,7 +83,7 @@ repo, please submit a
 developing `erllambda` should be as easy as forking the repo, and then:
 
 ```
-git@algithub.pd.alertlogic.net:${USER}/erllambda.git
+git clone git@algithub.pd.alertlogic.net:${USER}/erllambda.git
 cd erllambda
 git remote add upstream git@algithub.pd.alertlogic.net:alertlogic/erllambda.git
 make env
