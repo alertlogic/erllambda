@@ -1,0 +1,41 @@
+#!/bin/sh
+
+set -e
+
+SCRIPT=$(readlink $0 || true)
+if [ -z $SCRIPT ]; then
+    SCRIPT=$0
+fi;
+SCRIPT_DIR="$(cd `dirname "$SCRIPT"` && pwd -P)"
+RELEASE_ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+REL_NAME="{{release_name}}"
+REL_DIR="$RELEASE_ROOT_DIR/releases/{{release_version}}"
+ERTS_DIR="$RELEASE_ROOT_DIR/erts-{{release_erts_version}}"
+VMARGS_PATH="$REL_DIR/vm.args"
+CONFIG_PATH="$REL_DIR/sys.config"
+ERTS_LIB_DIR="$ERTS_DIR/../lib"
+
+export HOME="$RELEASE_ROOT_DIR"
+export ROOTDIR="$RELEASE_ROOT_DIR"
+export BINDIR="$ERTS_DIR/bin"
+export EMU="beam"
+export PROGNAME="erllambda"
+export LD_LIBRARY_PATH="$ERTS_DIR/lib"
+
+# Store passed arguments since they will be erased by `set`
+ARGS="$@"
+
+set -- "$ERTS_DIR/bin/erlexec" -noshell -Bd \
+     -boot "$REL_DIR/$REL_NAME" \
+     -mode embedded \
+     -config "$CONFIG_PATH" \
+     -boot_var ERTS_LIB_DIR "$ERTS_LIB_DIR" \
+     -args_file "$VMARGS_PATH" \
+     -detached \
+     "$@"
+
+
+# echo "Exec: $@" -- ${1+$ARGS}
+# echo "Root: $ROOTDIR"
+exec "$@" -- ${1+$ARGS}
+     

@@ -1,0 +1,21 @@
+{application, erllambda,
+ [{description, "Erlang AWS Lambda Initiator & Utilities"},
+  {vsn, "git"},
+  {registered, []},
+  {mod, {erllambda_app, []}},
+  {applications,
+   [
+    kernel,
+    stdlib,
+    cowboy,
+    erlcloud
+   ]},
+  {env,
+   [
+    {region, <<"us-west-2">>}
+   ]},
+  {modules, []},
+  {contributors, []},
+  {licenses, []},
+  {links, []}
+ ]}.

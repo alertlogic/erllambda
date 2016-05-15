@@ -1,0 +1,24 @@
+{
+  "name": "erllambda",
+  "version": "1.0.0",
+  "description": "Erlang AWS Lambda Driver",
+  "main": "erllambda.js",
+  "devDependencies": {
+    "aws-sdk": "^2.3.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://algithub.pd.alertlogic.net/alertlogic/erllambda"
+  },
+  "author": "Paul Fisher",
+  "license": "ISC",
+  "dependencies": {
+    "glob": "^7.0.3",
+    "http": "0.0.0",
+    "ps-node": "0.0.5",
+    "tmp": "0.0.28"
+  }
+}
