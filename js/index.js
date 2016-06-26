@@ -1,3 +1,5 @@
+/*jslint es6, node, white */
+"use strict";
 var AWS = require('aws-sdk');
 var config = new AWS.Config();
 var erlang = require('./erlang.js');
@@ -27,24 +29,6 @@ exports.handler = function(event, context) {
         }
         erlang.invoke( handler.module, event, context, function(error,success) {
             context.done( error, success );
-        }
+        });
     });
-}
-
-/* normally lambda will call our handlers to drive things, but we are are
-   just testing standalone then this will drive things. */
-if (!module.parent) {
-    var event = { foo: true };
-    var context = { bar: true };
-    context.done = function(error, succeed) {
-        console.log( 'error: ' + error )
-        console.log( 'succeed: ' + succeed )
-    };
-    context.succeed = function(string) { console.log(string) };
-    context.fail = function(string) { console.log(string) };
-
-    console.log( 'starting test!!!!' );
-    console.log( 'event: ' + JSON.stringify(event) );
-    console.log( 'context: ' + JSON.stringify(context) );
-    exports.elHandler(event, context);
-}
+};
