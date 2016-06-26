@@ -3,12 +3,9 @@
 var AWS = require('aws-sdk');
 var config = new AWS.Config();
 var erlang = require('./erlang.js');
+var handler = require('etc/handler.json');
 
 exports.handler = function(event, context) {
-    /* compose parameter and execute the erlang handler as configured */
-    var fs = require('fs');
-    var handler = JSON.parse( fs.readFileSync('etc/handler.json', 'utf8') );
-
     /* validation of minimal handler fields */
     if( !handler ) {
         context.fail( 'handler definition invalid' ); return;
