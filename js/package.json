@@ -7,6 +7,7 @@
     "aws-sdk": "^2.3.0"
   },
   "scripts": {
+    "lint": "jslint --edition=latest --terse **.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
