@@ -1,5 +1,6 @@
 /*jslint es6, node, white */
 "use strict";
+var async = require('async');
 var exec = require('child_process').exec;
 var http = require('http');
 
@@ -47,29 +48,75 @@ function stop(script, callback) {
     });
 }
 
+
 function start(appmod, script, env, callback) {
-    const tmp = require('tmp');
-    const glob = require('glob');
     const command = script + ' start';
-    /* set some additional environment variable needed to drive rebar
-       release scripts. */
-    env.RELX_REPLACE_OS_VARS = "true";
-    env.CORESRV_RUNDIR = tmp.dirSync().name;
-    env.CORESRV_PROGNAME = appmod;
-    env.ERTS_DIR = glob.sync( 'erts-*' )[0];
-    env.HOME = tmp.name;
-    /* no matter what we just issue a stop without looking, to be safe */
-    stop( script, function() {
-        console.log( 'executing: "%s" with env: %s', command,
-                     JSON.stringify(env) );
-        exec( command, {env: env}, function(err) {
-            if( err ) { callback(err); }
-            else {
-                const deadline = Date.now() + 10000;
-                alive(appmod, deadline, callback);
-            }
-        });
-    });
+    const taskdir = '/var/task';
+    var releasedir = null;
+    var rundir = null;
+
+    /* create the temp directory and move copies of the config files into it
+       so they are writable by the erlang node script. */
+    async.series( [
+        function(callback) {
+            async.parallel( [
+                function(callback) {
+                    const tmp = require('tmp');
+                    tmp.dir(function(err, path) {
+                        if(!err) { rundir = path; }
+                        callback(err);
+                    });
+                },
+                function(callback) {
+                    const glob = require('glob');
+                    glob( 'releases/*.*.*', function(err, matches) {
+                        if(!err) { releasedir = matches[0]; }
+                        callback(err);
+                    });
+                }
+            ], callback );
+        },
+        function(callback) {
+            const fs = require('fs.extra');
+            const options = {replace: true};
+            async.parallel( [
+                function(callback) {
+                    var source = releasedir + '/vm.args';
+                    var dest = rundir + '/vm.args';
+                    fs.copy( source, dest, options, callback );
+                },
+                function(callback) {
+                    var source = releasedir + '/sys.config';
+                    var dest = rundir + '/sys.config';
+                    fs.copy( source, dest, options, callback );
+                }
+            ], callback );
+        },
+        function(callback) {
+            /* set some additional environment variable needed to drive rebar
+               release scripts. */
+            env.RELX_REPLACE_OS_VARS = "true";
+            env.RELX_CONFIG_PATH = rundir;
+            env.VMARGS_PATH = rundir;
+            env.RUN_DIR = rundir;
+            env.RUNNER_LOG_DIR = rundir;
+            env.PROGNAME = appmod;
+            env.HOME = taskdir;
+            /* no matter what we just issue a stop without looking, to be
+               safe */
+            stop( script, function() {
+                console.log( 'executing: "%s" with env: %s', command,
+                             JSON.stringify(env) );
+                exec( command, {env: env}, function(err) {
+                    if( err ) { callback(err); }
+                    else {
+                        const deadline = Date.now() + 10000;
+                        alive(appmod, deadline, callback);
+                    }
+                });
+            });
+        }
+    ], callback );
 }
 
 
