@@ -26,7 +26,8 @@ start(_StartType, _StartArgs) ->
              ],
     try cowboy_router:compile( [{'_', Routes}] ) of
         Dispatch ->
-            {ok, _} = cowboy:start_http( http, 1, [{port, 7181}],
+            Options = [{ip, {127,0,0,1}}, {port, 7181}],
+            {ok, _} = cowboy:start_http( http, 1, Options,
                                          [{env, [{dispatch, Dispatch}]}] ),
             erllambda_sup:start_link()
     catch
