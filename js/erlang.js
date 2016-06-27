@@ -26,15 +26,18 @@ function ping(appmod, callback) {
 function alive(appmod, deadline, callback) {
     const delay = 100;
     ping( appmod, function(err) {
-        if( !err ) { callback(); }
+        if( !err ) {
+            console.log( 'erlang alive: success', delay );
+            callback();
+        }
         else if( Date.now() < deadline ) {
-            console.log( 'waiting %s ms for erlang start', delay );
             setTimeout( function() {
                 alive(appmod, deadline, callback);
             }, delay );
         }
         else {
-            callback( { action: 'alive', error: 'timeout waiting for vm' } );
+            console.log( 'erlang alive: deadline exceeded' );
+            callback( err );
         }
     });
 }
@@ -50,6 +53,7 @@ function stop(script, callback) {
 
 
 function start(appmod, script, env, callback) {
+    const fs = require('fs');
     const command = script + ' start';
     const taskdir = '/var/task';
     var releasedir = null;
@@ -77,29 +81,41 @@ function start(appmod, script, env, callback) {
             ], callback );
         },
         function(callback) {
-            const fs = require('fs.extra');
-            const options = {replace: true};
-            async.parallel( [
-                function(callback) {
-                    var source = releasedir + '/vm.args';
-                    var dest = rundir + '/vm.args';
-                    fs.copy( source, dest, options, callback );
-                },
-                function(callback) {
-                    var source = releasedir + '/sys.config';
-                    var dest = rundir + '/sys.config';
-                    fs.copy( source, dest, options, callback );
-                }
-            ], callback );
+            async.forEach(
+                ['vm.args', 'sys.config'],
+                function(name, callback) {
+                    var source = taskdir + '/' + releasedir + '/' + name;
+                    var dest = rundir + '/' + name;
+                    console.log( 'linking ' + dest + ' -> ' + source );
+                    fs.symlink( source, dest, function(err) {
+                        if(err) {console.log( 'link failed: ' + err );}
+                        callback(err);
+                    });
+                }, callback );
+        },
+        function(callback) {
+            async.forEach(
+                ['cachefs', 'checkpointfs', 'tmpfs', 'ramfs'],
+                function(name, callback) {
+                    const dirname = rundir + '/' + name;
+                    console.log( 'creating dir: ' + dirname );
+                    fs.mkdir( dirname, function(err) {
+                        if(err && err.code !== 'EEXISTS') {
+                            console.log( 'create dir failed: ' + err );
+                        }
+                        callback(err);
+                    });
+                }, callback );
         },
         function(callback) {
             /* set some additional environment variable needed to drive rebar
                release scripts. */
             env.RELX_REPLACE_OS_VARS = "true";
-            env.RELX_CONFIG_PATH = rundir;
-            env.VMARGS_PATH = rundir;
+            env.VAR_DIR = rundir;
             env.RUN_DIR = rundir;
-            env.RUNNER_LOG_DIR = rundir;
+            env.RELX_CONFIG_PATH = rundir + '/sys.config';
+            env.VMARGS_PATH = rundir + '/vm.args';
+            env.RUNNER_LOG_DIR = rundir + '/log';
             env.PROGNAME = appmod;
             env.HOME = taskdir;
             /* no matter what we just issue a stop without looking, to be
