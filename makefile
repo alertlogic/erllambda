@@ -1,12 +1,13 @@
 APP := erllambda
 
-COMP_NEEDED := erlang_r18_2_1,rebar3,setenv
+ERLANG_VERSION ?= r19_1
+COMPS_NEEDED := erlang_$(ERLANG_VERSION),rebar3,setenv
 
 all: unit
 
 env :
 	@echo "Ensuring build environment is boostrapped..."
-	@APP=${APP} COMPS_NEEDED=$(COMP_NEEDED) ./setup.sh -u
+	@APP=$(APP) COMPS_NEEDED=$(COMPS_NEEDED) ERLANG_VERSION=$(ERLANG_VERSION) ./setup.sh -u
 
 MAKE_HOME = $(abspath $(or $(wildcard _checkouts/makeincl),\
 			   $(wildcard _build/makeincl)))
