@@ -6,8 +6,8 @@ var http = require('http');
 
 function ping(appmod, callback) {
     const options = {
+        socketPath: '/tmp/erllambda.sock'
         host: 'localhost',
-        port: '7181',
         path: '/erllambda/' + appmod,
         method: 'GET'
     };
@@ -158,8 +158,8 @@ module.exports.connect = function(appmod, script, env, callback) {
 module.exports.invoke = function(appmod, event, context, callback) {
     const body = JSON.stringify( { event: event, context: context } );
     const options = {
+        socketPath: '/tmp/erllambda.sock'
         host: 'localhost',
-        port: '7181',
         path: '/erllambda/' + appmod,
         method: 'POST',
         headers: {

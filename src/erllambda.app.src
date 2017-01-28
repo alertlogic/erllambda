@@ -12,7 +12,10 @@
    ]},
   {env,
    [
-    {region, <<"us-west-2">>}
+    %% name of the socket file to use when running in lambda mode
+    {socket_file, "/tmp/erllambda.sock"},
+    %% port number to use when running in ecs mode
+    {tcp_port, 9999}
    ]},
   {modules, []},
   {contributors, []},

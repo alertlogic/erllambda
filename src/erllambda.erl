@@ -335,14 +335,8 @@ checkpoint_complete( Complete, #{todo := Todo, function := Function,
 invoke( Handler, Event, Context ) ->
     application:set_env( erllambda, handler, Handler ),
     application:set_env( erllambda, message_pid, self() ),
-    try Handler:handle( Event, Context ) of
-        ok ->
-            %% if the handler returns ok, we assume success
-            succeed( "completed successfully" );
-        _Anything ->
-            %% if handler returns anything else, then it did not call
-            %% fail/succeed, or return ok, so it is assumed to fail
-            fail( Handler, "did not invoke succeed/1,2 or fail/1,2" )
+    try 
+        invoke_( Handler, Event, Context )
     catch
         throw:{result, Json} -> Json;
         Type:Reason ->  
@@ -352,6 +346,17 @@ invoke( Handler, Event, Context ) ->
     after
         application:set_env( erllambda, handler, undefined ),
         application:set_env( erllambda, message_pid, undefined )
+    end.
+
+invoke_( Handler, Event, Context ) ->
+    case Handler:handle( Event, Context ) of
+        ok ->
+            %% if the handler returns ok, we assume success
+            succeed( "completed successfully" );
+        _Anything ->
+            %% if handler returns anything else, then it did not call
+            %% fail/succeed, or return ok, so it is assumed to fail
+            fail( Handler, "did not invoke succeed/1,2 or fail/1,2" )
     end.
 
 
@@ -375,7 +380,7 @@ complete( Field, Message ) ->
 complete( Field, Format, Values ) ->
     Message = format( Format, Values ),
     AdditionalMessages = messages(),
-    Json = jsx:encode( #{ Field => Message, messages => AdditionalMessages } ),
+    Json = jiffy:encode( #{Field => Message, messages => AdditionalMessages} ),
     throw( {result, Json} ).
 
 

@@ -13,6 +13,10 @@
 
 -export([init/2, terminate/3]).
 
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
 
 %%====================================================================
 %% Cowboy handler functions
@@ -42,8 +46,9 @@ init( Request, [] ) ->
                 BinTrace = iolist_to_binary( io_lib:format( "~p", [Trace] ) ),
                 EscTrace = binary:replace( BinTrace, <<"\"">>, <<"\\\"">>,
                                            [global] ),
-                Body = jsx:encode( #{error => #{type => Type, reason => Reason,
-                                                trace => EscTrace}} ),
+                Body = jiffy:encode( #{error => #{type => Type,
+                                                  reason => Reason,
+                                                  trace => EscTrace}} ),
                 cowboy_req:reply( 200, json_headers(), Body, Request )  
         end,
     {ok, NewRequest, undefined}.
@@ -64,7 +69,7 @@ init( Request, [] ) ->
 %% certainty, then this callback should crash, which will terminate the
 %% process.
 %%
-terminate( _Reason, _Request, undefined ) -> ok.
+terminate( _Reason, _Request, [] ) -> ok.
 
 
 
@@ -90,13 +95,20 @@ request( get, BinModule, Request ) ->
             {ok, 200, json_headers(),
              <<"{\"error\": \"module is unknown\"}">>, Request}
     end;
-request( post, Module, Request ) ->
-    case cowboy_req:has_body( Request ) of
-        true ->
-            post_body( Module, Request );
-        false ->
+request( post, BinModule, Request ) ->
+    try binary_to_existing_atom( BinModule, latin1 ) of
+        Module ->
+            case cowboy_req:has_body( Request ) of
+                true ->
+                    post_body( Module, Request );
+                false ->
+                    {ok, 200, json_headers(),
+                     <<"{\"error\": \"body missing from post\"}">>, Request}
+            end
+    catch
+        error:badarg ->
             {ok, 200, json_headers(),
-             <<"{\"error\": \"body missing from post\"}">>, Request}
+             <<"{\"error\": \"module is unknown\"}">>, Request}
     end.
 
 post_body( Module, Request ) ->
@@ -107,7 +119,7 @@ post_body( Module, Request ) ->
     end.
 
 post_body_read( Request, Body ) ->
-    case cowboy_req:body( Request ) of
+    case cowboy_req:read_body( Request ) of
         {ok, Data, NewRequest} ->
             NewBody = <<Body/binary, Data/binary>>,
             {ok, NewBody, NewRequest};
@@ -118,9 +130,9 @@ post_body_read( Request, Body ) ->
     end.
 
 post_process( Module, Body, Request ) ->
-    try jsx:decode( Body, [return_maps] ) of
+    try jiffy:decode( Body, [return_maps] ) of
         #{<<"event">> := Event, <<"context">> := Context} ->
-            Response = erllambda:invoke_handler( Module, Event, Context ),
+            Response = erllambda:invoke( Module, Event, Context ),
             {ok, 200, json_headers(), Response, Request};
         #{<<"context">> := _} ->
             {ok, 200, json_headers(),
@@ -136,5 +148,5 @@ post_process( Module, Body, Request ) ->
 
 
 json_headers() ->
-    [{<<"content-type">>, <<"application/json">>}].
+    #{<<"content-type">> => <<"application/json">>}.
 

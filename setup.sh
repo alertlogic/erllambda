@@ -13,5 +13,10 @@ for comp in dev_scripts makeincl; do
     fi
 done
 
+# choose correct dev_scripts location
+DEV_SCRIPTS_DIR=_build/dev_scripts
+if [[ -e _checkouts/dev_scripts ]]; then
+    DEV_SCRIPTS_DIR=_checkouts/dev_scripts
+fi
 SCRIPT_DIR="${SCRIPT_DIR}" COMPS_NEEDED="${COMPS_NEEDED}" \
-_build/dev_scripts/setup.sh "$@"
+${DEV_SCRIPTS_DIR}/setup.sh "$@"
