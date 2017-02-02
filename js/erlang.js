@@ -1,12 +1,14 @@
 /*jslint es6, node, white */
 "use strict";
 var async = require('async');
-var exec = require('child_process').exec;
+var spawn = require('child_process').spawn;
 var http = require('http');
+const fs = require('fs');
+const glob = require('glob');
 
 function ping(appmod, callback) {
     const options = {
-        socketPath: '/tmp/erllambda.sock'
+        socketPath: '/tmp/erllambda.sock',
         host: 'localhost',
         path: '/erllambda/' + appmod,
         method: 'GET'
@@ -43,18 +45,7 @@ function alive(appmod, deadline, callback) {
 }
 
 
-function stop(script, callback) {
-    const command = script + ' stop';
-    console.log( 'executing: "%s"', command );
-    exec( command, {}, function() {
-        callback();
-    });
-}
-
-
 function start(appmod, script, env, callback) {
-    const fs = require('fs');
-    const command = script + ' start';
     const taskdir = '/var/task';
     var releasedir = null;
     var rundir = null;
@@ -111,26 +102,31 @@ function start(appmod, script, env, callback) {
             /* set some additional environment variable needed to drive rebar
                release scripts. */
             env.RELX_REPLACE_OS_VARS = "true";
+            env.RELX_CONFIG_PATH = rundir + '/sys.config';
+            env.NATIVELIB_DIR = taskdir + '/erts-*/lib';
+            env.VMARGS_PATH = rundir + '/vm.args';
             env.VAR_DIR = rundir;
             env.RUN_DIR = rundir;
-            env.RELX_CONFIG_PATH = rundir + '/sys.config';
-            env.VMARGS_PATH = rundir + '/vm.args';
-            env.RUNNER_LOG_DIR = rundir + '/log';
+            env.RUNNER_LOG_DIR = rundir;
             env.PROGNAME = appmod;
             env.HOME = taskdir;
             /* no matter what we just issue a stop without looking, to be
                safe */
-            stop( script, function() {
-                console.log( 'executing: "%s" with env: %s', command,
-                             JSON.stringify(env) );
-                exec( command, {env: env}, function(err) {
-                    if( err ) { callback(err); }
-                    else {
-                        const deadline = Date.now() + 10000;
-                        alive(appmod, deadline, callback);
-                    }
-                });
+            console.log( 'executing: "%s" with env: %s', script,
+                         JSON.stringify(env) );
+            const child = spawn( script, ['foreground'], {env: env} );
+            child.stdout.on('data', (data) => {
+                console.log( data.toString() );
             });
+            child.stderr.on('data', (data) => {
+                console.log( data.toString() );
+            });
+            child.on('close', (code) => {
+                console.log( '${script} executed with ${code}' );
+            });
+
+            const deadline = Date.now() + 10000;
+            alive( appmod, deadline, callback );
         }
     ], callback );
 }
@@ -158,7 +154,7 @@ module.exports.connect = function(appmod, script, env, callback) {
 module.exports.invoke = function(appmod, event, context, callback) {
     const body = JSON.stringify( { event: event, context: context } );
     const options = {
-        socketPath: '/tmp/erllambda.sock'
+        socketPath: '/tmp/erllambda.sock',
         host: 'localhost',
         path: '/erllambda/' + appmod,
         method: 'POST',

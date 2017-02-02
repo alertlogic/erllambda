@@ -43,12 +43,10 @@ init( Request, [] ) ->
         catch
             Type:Reason ->
                 Trace = erlang:get_stacktrace(),
-                BinTrace = iolist_to_binary( io_lib:format( "~p", [Trace] ) ),
-                EscTrace = binary:replace( BinTrace, <<"\"">>, <<"\\\"">>,
-                                           [global] ),
+                error_logger:error_report(
+                  {request_failed, {Type, Reason}, Trace} ),
                 Body = jiffy:encode( #{error => #{type => Type,
-                                                  reason => Reason,
-                                                  trace => EscTrace}} ),
+                                                  reason => Reason}} ),
                 cowboy_req:reply( 200, json_headers(), Body, Request )  
         end,
     {ok, NewRequest, undefined}.
