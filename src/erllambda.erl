@@ -398,10 +398,7 @@ messages( Acc ) ->
                    
 
 messages_send( Message ) ->
-    case application:get_env( erllambda, message_pid ) of
-        {ok, Pid} -> Pid ! {erllambda_message, Message}, ok;
-        undefined -> ok
-    end.
+    error_logger:info_msg( Message, [] ).
 
 
 %%====================================================================
