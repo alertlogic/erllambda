@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+set -e
+
+SCRIPT=$(readlink $0 || true)
+if [ -z $SCRIPT ]; then
+    SCRIPT=$0
+fi;
+SCRIPT_DIR="$(cd `dirname "$SCRIPT"` && pwd -P)"
+RELEASE_ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+REL_DIR=(${RELEASE_ROOT_DIR}/releases/[0-9]*)
+ERTS_DIR=(${RELEASE_ROOT_DIR}/erts-*)
+ERTS_LIB_DIR="${ERTS_DIR}/../lib"
+export REL_NAME="$(basename $SCRIPT)"
+
+replace_os_vars() {
+    awk '{
+        while(match($0,"[$]{[^}]*}")) {
+            var=substr($0,RSTART+2,RLENGTH -3)
+            gsub("[$]{"var"}",ENVIRON[var])
+        }
+    }1' < "$1" > "$2"
+}
+
+# perform environment variable substitution into run- files
+VMARGS_SRC="${REL_DIR}/vm.args"
+# VMARGS_PATH="${RUN_DIR}/vm.args"
+# replace_os_vars ${VMARGS_SRC} ${VMARGS_PATH}
+CONFIG_SRC="${REL_DIR}/sys.config"
+# CONFIG_PATH="${RUN_DIR}/sys.config"
+# replace_os_vars ${CONFIG_SRC} ${CONFIG_PATH}
+
+export HOME="$RELEASE_ROOT_DIR"
+export ROOTDIR="$RELEASE_ROOT_DIR"
+export BINDIR="$ERTS_DIR/bin"
+export EMU="beam"
+export LD_LIBRARY_PATH="$ERTS_DIR/lib"
+
+# Store passed arguments since they will be erased by `set`
+ARGS="$@"
+
+set -- "$ERTS_DIR/bin/erlexec" -noshell -noinput -Bd \
+     -boot "$REL_DIR/$REL_NAME" \
+     -mode embedded \
+     -boot_var ERTS_LIB_DIR "$ERTS_LIB_DIR" \
+     -config "$CONFIG_SRC" \
+     -args_file "$VMARGS_SRC"
+
+echo "Exec: $@" -- ${1+$ARGS}
+echo "Root: $ROOTDIR"
+cd $ROOTDIR
+exec "$@" -- ${1+$ARGS}
+     

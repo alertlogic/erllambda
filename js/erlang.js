@@ -101,20 +101,15 @@ function start(appmod, script, env, callback) {
         function(callback) {
             /* set some additional environment variable needed to drive rebar
                release scripts. */
-            env.RELX_REPLACE_OS_VARS = "true";
-            env.RELX_CONFIG_PATH = rundir + '/sys.config';
             env.NATIVELIB_DIR = taskdir + '/erts-*/lib';
-            env.VMARGS_PATH = rundir + '/vm.args';
             env.VAR_DIR = rundir;
             env.RUN_DIR = rundir;
-            env.RUNNER_LOG_DIR = rundir;
             env.PROGNAME = appmod;
-            env.HOME = taskdir;
             /* no matter what we just issue a stop without looking, to be
                safe */
             console.log( 'executing: "%s" with env: %s', script,
                          JSON.stringify(env) );
-            const child = spawn( script, ['foreground'], {env: env} );
+            const child = spawn( script, [], {env: env} );
             child.stdout.on('data', (data) => {
                 console.log( data.toString() );
             });
