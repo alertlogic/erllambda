@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+erllambdadir=${1:-/nowhere}
+targetdir=${2:-/nowhere}
+
+# remove any previously install node modules
+rm -rf ${taretdir}/node_modules
+
+# generate npm distribution package
+(cd ${targetdir}/.. &&
+ npm pack ${erllambdadir}/js &&
+ tar -xzf erllambda-*.tgz &&
+ mv package/* ${targetdir}/ &&
+ rm -rf package)
+(cd ${targetdir} && npm install --production)
