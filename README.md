@@ -23,9 +23,19 @@ handle( Event, Context ) ->
     erllambda:succeed( "Hello World!" ).
 ```
 
-This function is then built into an Erlang application, and packaged as
-a [rebar3 release](http://www.rebar3.org/docs/releases) along with any other
-applications/libraries needed to implement the intended functionality.
+There are really two ways to get started.  First you can checkout and review
+the
+[`erllambda_example`](https://algithub.pd.alertlogic.net/alertlogic/erllambda_example)
+project.  This is a complete working AWS Lambda written in Erlang, with the
+goal of demonstrating the capabilities available as part of the framework,
+and how to write Lambda functions for different purposes in AWS.
+
+The second path is to use the
+[`rebar3_erllambda`](https://algithub.pd.alertlogic.net/alertlogic/rebar3_erllambda)
+plugin for `rebar3`.  This will produce a fully working `erllambda` project
+that can be used as a starting point for any new development.  This plugin
+also implements additional `rebar3 release` building and AWS Lambda function
+packaging that simplify development.
 
 The [makeincl](https://algithub.pd.alertlogic.net/alertlogic/makeincl)
 project provides support for developing and deploying AWS Lambda functions
