@@ -3,7 +3,7 @@ erllambdadir=${1:-/nowhere}
 targetdir=${2:-/nowhere}
 
 # remove any previously install node modules
-rm -rf ${taretdir}/node_modules
+rm -rf ${targetdir}/node_modules
 
 # generate npm distribution package
 (cd ${targetdir}/.. &&
