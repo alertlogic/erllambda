@@ -1,10 +1,12 @@
 /*jslint es6, node, white */
 "use strict";
-var async = require('async');
-var spawn = require('child_process').spawn;
-var http = require('http');
+const async = require('async');
+const spawn = require('child_process').spawn;
+const http = require('http');
 const fs = require('fs');
 const glob = require('glob');
+const future = require('future');
+var flushFuture = null;
 
 function ping(appmod, callback) {
     const options = {
@@ -44,6 +46,19 @@ function alive(appmod, deadline, callback) {
     });
 }
 
+
+function output( data ) {
+    const eof = 'EOF: ';
+    data.toString().split('\n').forEach( function(line) {
+        if( line !== '' ) {
+            if( flushFuture && line.lastIndexOf(eof, 0) === 0 ) {
+                flushFuture.deliver( null, "complete" );
+            } else {
+                console.log( line );
+            }
+        }
+    });
+}
 
 function start(appmod, script, env, callback) {
     const taskdir = '/var/task';
@@ -110,12 +125,8 @@ function start(appmod, script, env, callback) {
             console.log( 'executing: "%s" with env: %s', script,
                          JSON.stringify(env) );
             const child = spawn( script, [], {env: env} );
-            child.stdout.on('data', (data) => {
-                console.log( data.toString() );
-            });
-            child.stderr.on('data', (data) => {
-                console.log( data.toString() );
-            });
+            child.stdout.on('data', output );
+            child.stderr.on('data', output );
             child.on('close', (code) => {
                 console.log( '${script} executed with ${code}' );
             });
@@ -125,7 +136,6 @@ function start(appmod, script, env, callback) {
         }
     ], callback );
 }
-
 
 module.exports.connect = function(appmod, script, env, callback) {
     /* find an existing Erlang VM running in our container, and if not
@@ -158,18 +168,23 @@ module.exports.invoke = function(appmod, event, context, callback) {
             'Content-Length': Buffer.byteLength(body)
         }
     };
+    flushFuture = new future.create();
     var req = http.request( options, function(response) {
         var resp_body = '';
         response.on('data', function(chunk) {
             resp_body += chunk;
         });
         response.on('end', function() {
-            if( response.statusCode === 200 ) {
-                const json = JSON.parse( resp_body );
-                callback( json.error, json.success );
-            } else {
-                callback( 'unexpected status code: ' + response.statusCode );
-            }
+            flushFuture.when( function() {
+                if( response.statusCode === 200 ) {
+                    const json = JSON.parse( resp_body );
+                    callback( json.error, json.success );
+                } else {
+                    callback( 'unexpected status code: '
+                              + response.statusCode );
+                }
+                flushFuture = null;
+            });
         });
     }).on('error', function(error) {
         callback(error);
