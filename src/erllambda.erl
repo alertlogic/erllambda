@@ -92,7 +92,7 @@ fail( Format, Values ) ->
 %%
 message( Message ) ->
     NewMessage = format( Message ),
-    messages_send( NewMessage ).
+    message_send( NewMessage ).
 
 
 %%%---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ message( Message ) ->
 %%
 message( Format, Values ) ->
     Message = format( Format, Values ),
-    messages_send( Message ).
+    message_send( Message ).
 
 
 %%%---------------------------------------------------------------------------
@@ -344,6 +344,7 @@ invoke( Handler, Event, Context ) ->
             fail( "terminated with exception {~w,~w} with trace ~n~p",
                   [Type, Reason, Trace] )
     after
+        message_send( "EOF: flush stdout" ),
         application:set_env( erllambda, handler, undefined ),
         application:set_env( erllambda, message_pid, undefined )
     end.
@@ -397,8 +398,8 @@ messages( Acc ) ->
     end.
                    
 
-messages_send( Message ) ->
-    error_logger:info_msg( Message, [] ).
+message_send( Message ) ->
+    io:fwrite( "~s\n", [Message] ).
 
 
 %%====================================================================
