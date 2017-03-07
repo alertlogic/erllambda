@@ -1,5 +1,5 @@
 %%%---------------------------------------------------------------------------
-%% @doc erllambda_http - Erllambda Application HTTP endpoint
+%% @doc erllambda_v1_http - Erllambda Application HTTP endpoint
 %%
 %% This module implements the Cowboy request handler, used by the javascript
 %% driver to interface with the Erlang node.
@@ -8,7 +8,7 @@
 %% @copyright 2016 Alert Logic, Inc
 %% @author Paul Fisher <pfisher@alertlogic.com>
 %%%---------------------------------------------------------------------------
--module(erllambda_http).
+-module(erllambda_v1_http).
 -author('Paul Fisher <pfisher@alertlogic.com>').
 
 -export([init/2, terminate/3]).
@@ -33,7 +33,7 @@
 %%
 init( Request, [] ) ->
     Method = method( cowboy_req:method( Request ) ),
-    <<"/erllambda/", Module/binary>> = cowboy_req:path( Request ),
+    <<"/eee/v1/", Module/binary>> = cowboy_req:path( Request ),
     NewRequest =
         try request( Method, Module, Request ) of
             {ok, Status, MethodRequest} ->
