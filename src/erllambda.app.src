@@ -13,10 +13,19 @@
    ]},
   {env,
    [
+    %% the list of protocols the http endpoint should listen.
+    %%
+    %% The default is to list on "unix" domain protocol.  This can also be
+    %% specified as "tcp", or both "unix, tcp".  This value can be overriden
+    %% via the environment variable ERLLAMBDA_LISTEN_PROTOCOLS.
+    {listen_protocols, "unix"},
+
     %% name of the socket file to use when running in lambda mode
-    {socket_file, "/tmp/erllambda.sock"},
-    %% port number to use when running in ecs mode
-    {tcp_port, 9999}
+    {socket_file, "/tmp/eeecomm.sock"},
+
+    %% port number to use when running in ecs mode.  This value can be
+    %% overriden via the environment variable ERLLAMBDA_TCP_PORT.
+    {tcp_port, 6789}
    ]},
   {modules, []},
   {contributors, []},

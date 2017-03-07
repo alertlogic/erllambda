@@ -29,7 +29,7 @@ cleanup_service( Config ) ->
 
 setup( erllambda, Config ) ->
     Transport = proplists:get_value( transport, Config ),
-    os:putenv( "ERLLAMBDA_TRANSPORT", atom_to_list(Transport) ),
+    os:putenv( "ERLLAMBDA_LISTEN_PROTOCOLS", atom_to_list(Transport) ),
     ok = application:load( erllambda ),
     transport_config( Transport,
                       handler_config( Config ) );
@@ -98,7 +98,7 @@ handler_config( Config ) ->
 
 uri( Config ) ->
     Module = proplists:get_value( handler, Config ),
-    uri( ["erllambda", $/, Module], Config ).
+    uri( ["eee/v1", $/, Module], Config ).
     
 
 uri( Resource, Config ) ->

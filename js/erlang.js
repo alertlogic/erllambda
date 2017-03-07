@@ -10,9 +10,9 @@ var flushFuture = null;
 
 function ping(appmod, callback) {
     const options = {
-        socketPath: '/tmp/erllambda.sock',
+        socketPath: '/tmp/eeecomm.sock',
         host: 'localhost',
-        path: '/erllambda/' + appmod,
+        path: '/eee/v1/' + appmod,
         method: 'GET'
     };
     http.request( options, function(response) {
@@ -159,9 +159,9 @@ module.exports.connect = function(appmod, script, env, callback) {
 module.exports.invoke = function(appmod, event, context, callback) {
     const body = JSON.stringify( { event: event, context: context } );
     const options = {
-        socketPath: '/tmp/erllambda.sock',
+        socketPath: '/tmp/eeecomm.sock',
         host: 'localhost',
-        path: '/erllambda/' + appmod,
+        path: '/eee/v1/' + appmod,
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
