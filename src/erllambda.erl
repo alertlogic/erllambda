@@ -18,7 +18,7 @@
 
 %% public - high-level migration orchestration endpoints
 -export([succeed/1, succeed/2, fail/1, fail/2, message/1, message/2, pterm/1]).
--export([region/0, config/0, service_host/2, service_config/3]).
+-export([region/0, config/0]).
 -export([ddb_init/3]).
 -export([checkpoint_init/5, checkpoint_todo/1, checkpoint_complete/2]).
 
@@ -127,13 +127,12 @@ pterm( Term ) ->
 %% @doc The default region
 %%
 %% This function will return the default region in which the Lambda function
-%% is running (e.g. AWS_DEFAULT_REGION environment variable), and if for
-%% whatever reason this is not set, it will use the 'region' application
-%% configuration value.
+%% is running.
+%%
+%% @see iwsutil:region/0
 %%
 region() ->
-    {ok, Default} = application:get_env( erllambda, region ),
-    os:getenv("AWS_DEFAULT_REGION", Default).
+    iwsutil:region().
 
 
 %%%---------------------------------------------------------------------------
@@ -143,49 +142,20 @@ region() ->
 %%
 %% This function will return a default AWS configuration record for use by
 %% the <code>erlcloud</code> application in calling AWS services from lambda
-%% functions.
+%% functions using the default execution role.  It is expected that the
+%% application calls this function every time an <code>erlcloud
+%% config</code> is needed, and the implementation will ensure that the
+%% credentials contained in the configuration are valid for at least 60
+%% seconds.
+%%
+%% If the application needs to assume an alternative role, it should call
+%% the {@link iwsutil:config/1,2} functions directly.
+%%
+%% @see iwsutil:config/0
 %%
 config() ->
-    Id = os:getenv( "AWS_ACCESS_KEY_ID" ),
-    Secret = os:getenv( "AWS_SECRET_ACCESS_KEY", undefined ),
-    Token = os:getenv( "AWS_SECURITY_TOKEN", undefined ),
-    #aws_config{ access_key_id = Id,
-                 secret_access_key = Secret,
-                 security_token = Token }.
+    iwsutil:config().
 
-
-%%%---------------------------------------------------------------------------
--spec service_host( Service :: atom() | binary(),
-                    Region :: binary() ) -> string().
-%%%---------------------------------------------------------------------------
-%% @doc Host name for the specified AWS service & region
-%%
-service_host( Service, Region ) when is_binary(Service) ->
-    binary_to_list( <<Service/binary, $., Region/binary, "amazonaws.com">> );
-service_host( ListService, Region ) when is_list(ListService) ->
-    service_host( list_to_binary(ListService), Region ).
-
-
-%%%---------------------------------------------------------------------------
--spec service_config( Service :: atom() | binary(), Region :: binary(),
-                      Config :: #aws_config{} ) -> #aws_config{}.
-%%%---------------------------------------------------------------------------
-%% @doc Generate config updated to work with specified AWS service & region
-%%
-%% This function will generate a new configuration to access an AWS service in
-%% the specified region, based on the a config containing valid credentials.
-%%
-service_config( <<"kinesis">> = Service, Region, Config ) ->
-    Host = service_host( Service, Region ),
-    Config#aws_config{ kinesis_host = Host, kinesis_port = 443 };
-service_config( <<"dynamodb">> = Service, Region, Config ) ->
-    Host = service_host( Service, Region ),
-    Config#aws_config{ ddb_host = Host, ddb_port = 443 };
-service_config( ddb, Region, Config ) ->
-    service_config( <<"dynamodb">>, Region, Config );
-service_config( Service, Region, Config ) when is_atom(Service) ->
-    service_config( atom_to_binary(Service, latin1), Region, Config ).
-    
 
 %%%---------------------------------------------------------------------------
 -spec ddb_init( Tables :: [binary()], Region :: binary(),
@@ -201,7 +171,7 @@ service_config( Service, Region, Config ) when is_atom(Service) ->
 %% continue without access to these tables.
 %%
 ddb_init( Tables, Config, Region ) ->
-    DDBConfig = service_config( <<"dynamodb">>, Region, Config ),
+    DDBConfig = erlcloud_aws:service_config( <<"dynamodb">>, Region, Config ),
     case lists:foldl( fun ddb_init_table/2, {ok, DDBConfig}, Tables ) of
         {ok, _} -> DDBConfig;
         {error, Reason} ->
@@ -320,9 +290,6 @@ checkpoint_complete( Complete, #{todo := Todo, function := Function,
     end.
 
 
-
-
-
 %%============================================================================
 %% Private API Function
 %%============================================================================
@@ -334,7 +301,6 @@ checkpoint_complete( Complete, #{todo := Todo, function := Function,
 %%
 invoke( Handler, Event, Context ) ->
     application:set_env( erllambda, handler, Handler ),
-    application:set_env( erllambda, message_pid, self() ),
     try 
         invoke_( Handler, Event, Context )
     catch
@@ -345,8 +311,7 @@ invoke( Handler, Event, Context ) ->
                   [Type, Reason, Trace] )
     after
         message_send( "EOF: flush stdout" ),
-        application:set_env( erllambda, handler, undefined ),
-        application:set_env( erllambda, message_pid, undefined )
+        application:set_env( erllambda, handler, undefined )
     end.
 
 invoke_( Handler, Event, Context ) ->
