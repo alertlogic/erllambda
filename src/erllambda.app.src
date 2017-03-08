@@ -9,6 +9,7 @@
     stdlib,
     cowboy,
     erlcloud,
+    iwsutil,
     jiffy
    ]},
   {env,

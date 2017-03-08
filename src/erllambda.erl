@@ -301,8 +301,9 @@ checkpoint_complete( Complete, #{todo := Todo, function := Function,
 %%
 invoke( Handler, Event, Context ) ->
     application:set_env( erllambda, handler, Handler ),
+    invoke_credentials( Context ),
     try 
-        invoke_( Handler, Event, Context )
+        invoke_exec( Handler, Event, Context )
     catch
         throw:{result, Json} -> Json;
         Type:Reason ->  
@@ -314,7 +315,26 @@ invoke( Handler, Event, Context ) ->
         application:set_env( erllambda, handler, undefined )
     end.
 
-invoke_( Handler, Event, Context ) ->
+invoke_credentials( #{<<"AWS_SECURITY_TOKEN">> := Token} = Context ) ->
+    case application:get_env( iwsutils, config ) of
+        {ok, #aws_config{security_token = Token}} -> ok;
+        _ -> invoke_update_credentials( Context )
+    end.
+
+invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
+                             <<"AWS_SECRET_ACCESS_KEY">> := Key,
+                             <<"AWS_SECURITY_TOKEN">> := Token,
+                             <<"AWS_CREDENTIAL_EXPIRE_TIME">> := Expire} ) ->
+    Config = #aws_config{ access_key_id = Id, secret_access_key = Key,
+                          security_token = Token,
+                          expiration = expiration(Expire) },
+    application:set_env( iwsutil, config, Config ).
+
+expiration( V ) when is_integer(V) -> V;
+expiration( null ) -> undefined;
+expiration( undefined ) -> undefined.
+
+invoke_exec( Handler, Event, Context ) ->
     case Handler:handle( Event, Context ) of
         ok ->
             %% if the handler returns ok, we assume success
