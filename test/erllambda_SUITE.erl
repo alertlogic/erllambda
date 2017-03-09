@@ -44,12 +44,12 @@ groups() ->
      {tcp, [],
       [
        test_verify,
-       test_invoke
+       test_process
       ]},
      {unix, [],
       [
        test_verify,
-       test_invoke
+       test_process
       ]}
     ].
 
@@ -68,18 +68,18 @@ end_per_group( _Transport, Config ) ->
 
 
 %%******************************************************************************
-%% Test SUITE callbacks
+%% Test functions
 %%******************************************************************************
 test_verify( Config ) ->
-    ?assertMatch( {ok, 200, _, undefined}, erllambda_ct:verify( Config ) ).
+    ?assertMatch( {ok, undefined}, erllambda_ct:verify( Config ) ).
 
-test_invoke( Config ) ->
+test_process( Config ) ->
     Context = #{<<"AWS_ACCESS_KEY_ID">> => "ID",
                 <<"AWS_SECRET_ACCESS_KEY">> => "KEY",
                 <<"AWS_SECURITY_TOKEN">> => "TOKEN",
                 <<"AWS_CREDENTIAL_EXPIRE_TIME">> => 123456},
-    ?assertMatch( {ok, 200, _, #{<<"success">> := _}},
-                  erllambda_ct:invoke( #{result => ok}, Context, Config ) ).
+    ?assertMatch( {ok, #{<<"success">> := _}},
+                  erllambda_ct:process( #{result => ok}, Context, Config ) ).
 
 
 %%******************************************************************************

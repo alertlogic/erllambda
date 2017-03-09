@@ -86,12 +86,14 @@ request( get, BinModule, Request ) ->
                     {ok, 200, Request};
                 false ->
                     {ok, 200, json_headers(),
-                     <<"{\"error\": \"module is unknown\"}">>, Request}
+                     <<"{\"error\": \"module is unknown1\", "
+                       " \"module\": \"", BinModule/binary, "\"}">>, Request}
             end
     catch
         error:badarg ->
             {ok, 200, json_headers(),
-             <<"{\"error\": \"module is unknown\"}">>, Request}
+             <<"{\"error\": \"module is unknown2\", "
+               " \"module\": \"", BinModule/binary, "\"}">>, Request}
     end;
 request( post, BinModule, Request ) ->
     try binary_to_existing_atom( BinModule, latin1 ) of
@@ -106,7 +108,8 @@ request( post, BinModule, Request ) ->
     catch
         error:badarg ->
             {ok, 200, json_headers(),
-             <<"{\"error\": \"module is unknown\"}">>, Request}
+             <<"{\"error\": \"module is unknown3\", "
+               " \"module\": \"", BinModule/binary, "\"}">>, Request}
     end.
 
 post_body( Module, Request ) ->
