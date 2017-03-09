@@ -88,19 +88,6 @@ function start(appmod, script, env, callback) {
         },
         function(callback) {
             async.forEach(
-                ['vm.args', 'sys.config'],
-                function(name, callback) {
-                    var source = taskdir + '/' + releasedir + '/' + name;
-                    var dest = rundir + '/' + name;
-                    console.log( 'linking ' + dest + ' -> ' + source );
-                    fs.symlink( source, dest, function(err) {
-                        if(err) {console.log( 'link failed: ' + err );}
-                        callback(err);
-                    });
-                }, callback );
-        },
-        function(callback) {
-            async.forEach(
                 ['cachefs', 'checkpointfs', 'tmpfs', 'ramfs'],
                 function(name, callback) {
                     const dirname = rundir + '/' + name;
