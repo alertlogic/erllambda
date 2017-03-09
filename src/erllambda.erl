@@ -10,7 +10,7 @@
 %%  https://aws.amazon.com/blogs/compute/container-reuse-in-lambda/
 %%
 %%
-%% @copyright 2016 Alert Logic, Inc
+%% @copyright 2017 Alert Logic, Inc
 %%%---------------------------------------------------------------------------
 -module(erllambda).
 -author('Paul Fisher <pfisher@alertlogic.com>').
