@@ -174,14 +174,14 @@ ddb_init( Tables, Config, Region ) ->
     DDBConfig = erlcloud_aws:service_config( <<"dynamodb">>, Region, Config ),
     case lists:foldl( fun ddb_init_table/2, {ok, DDBConfig}, Tables ) of
         {ok, _} -> DDBConfig;
-        {error, Reason} ->
-            erllambda:fail( "failed to init ddb tables, because ~s", [Reason] )
+        {error, {table_not_available, Table, Reason}} ->
+            fail( "ddb_init failed for ~s, because ~p", [Table, Reason] )
     end.
 
 ddb_init_table( Table, {ok, DDBConfig} = Acc ) ->
     case erlcloud_ddb2:describe_table( Table, [], DDBConfig ) of
         {ok, _Description} -> Acc;
-        {error, Reason} -> {error, pterm(Reason)}
+        {error, Reason} -> {error, {table_not_available, Table, Reason}}
     end;
 ddb_init_table( _Table, Error ) -> Error.
 
@@ -220,8 +220,7 @@ checkpoint_init( Table, Function, RequestId, Records, Config ) ->
               requestid => RequestId, config => Config,
               todo => Todo, written => true};
         {error, Reason} ->
-            erllambda:fail( "ddb checkpoint read for key ~p table ~p failed, "
-                            "because ~s", [Key, Table, pterm(Reason)] )
+            fail( "checkpoint_init failed, because ~p", [Reason] )
     end.
     
 
@@ -265,9 +264,7 @@ checkpoint_complete( Complete, #{todo := Complete, written := true,
     case erlcloud_ddb2:delete_item( Table, Key, [], Config ) of
         {ok, []} -> ok;
         {error, Reason} ->
-            erllambda:fail( "ddb checkpoint delete for key ~p table ~p "
-                            "records ~w failed, because ~s",
-                            [Key, Table, Complete, pterm(Reason)] )
+            fail( "checkpoint_complete delete failed, because ~p", [Reason] )
     end;
 checkpoint_complete( Complete, #{todo := Todo, function := Function,
                                  requestid := RequestId, table := Table,
@@ -281,12 +278,10 @@ checkpoint_complete( Complete, #{todo := Todo, function := Function,
         {ok, []} ->
             %% we succeeded writing the checkpoint record, but since we did
             %% not complete all records, we fail the lambda so it will retry
-            erllambda:fail( "checkpoint, written for key ~p, failing to "
-                            "retry records ~w", [Key, Complete] );
+            fail( "checkpoint, written for key ~p, failing to "
+                  "retry records ~w", [Key, Complete] );
         {error, Reason} ->
-            erllambda:fail( "ddb checkpoint write for key ~p table ~p "
-                            "records ~w failed, because ~s",
-                            [Key, Table, Complete, pterm(Reason)] )
+            fail( "checkpoint_complete write failed, because ~p", [Reason] )
     end.
 
 
@@ -342,7 +337,7 @@ invoke_exec( Handler, Event, Context ) ->
         _Anything ->
             %% if handler returns anything else, then it did not call
             %% fail/succeed, or return ok, so it is assumed to fail
-            fail( Handler, "did not invoke succeed/1,2 or fail/1,2" )
+            fail( "did not invoke succeed/1,2 or fail/1,2" )
     end.
 
 
