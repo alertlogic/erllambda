@@ -17,7 +17,7 @@
 
 
 %% public - high-level migration orchestration endpoints
--export([succeed/1, succeed/2, fail/1, fail/2, message/1, message/2, pterm/1]).
+-export([succeed/1, succeed/2, fail/1, fail/2, message/1, message/2]).
 -export([region/0, config/0]).
 -export([ddb_init/3]).
 -export([checkpoint_init/5, checkpoint_todo/1, checkpoint_complete/2]).
@@ -107,19 +107,6 @@ message( Format, Values ) ->
     Message = format( Format, Values ),
     message_send( Message ).
 
-
-%%%---------------------------------------------------------------------------
--spec pterm( Term :: term() ) -> binary().
-%%%---------------------------------------------------------------------------
-%% @doc Print an erlang term, truncating result size
-%%
-%% This function will print an erlang term, limiting the overall size of
-%% binary to 500 bytes.
-%%
-pterm( Term ) ->
-    {P, _} = trunc_io:print( Term, 500 ),
-    iolist_to_binary( P ).
-    
 
 %%%---------------------------------------------------------------------------
 -spec region() -> binary().
