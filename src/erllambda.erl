@@ -19,7 +19,7 @@
 %% public - high-level migration orchestration endpoints
 -export([succeed/1, succeed/2, fail/1, fail/2, message/1, message/2]).
 -export([region/0, config/0]).
--export([ddb_init/3]).
+-export([ddb_init/1, ddb_init/3]).
 -export([checkpoint_init/5, checkpoint_todo/1, checkpoint_complete/2]).
 
 %% private - handler invocation entry point, used by http api
@@ -171,6 +171,9 @@ ddb_init_table( Table, {ok, DDBConfig} = Acc ) ->
         {error, Reason} -> {error, {table_not_available, Table, Reason}}
     end;
 ddb_init_table( _Table, Error ) -> Error.
+
+ddb_init( Tables ) ->
+    ddb_init( Tables, config(), region() ).
 
 
 %%%---------------------------------------------------------------------------
