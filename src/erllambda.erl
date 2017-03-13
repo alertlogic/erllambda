@@ -168,7 +168,7 @@ ddb_init( Tables, Config, Region ) ->
 ddb_init_table( Table, {ok, DDBConfig} = Acc ) ->
     case erlcloud_ddb2:describe_table( Table, [], DDBConfig ) of
         {ok, _Description} -> Acc;
-        {error, Reason} -> {error, {table_not_available, Table, Reason}}
+        Otherwise -> {error, {table_not_available, Table, Otherwise}}
     end;
 ddb_init_table( _Table, Error ) -> Error.
 
@@ -209,8 +209,8 @@ checkpoint_init( Table, Function, RequestId, Records, Config ) ->
             #{table => Table, key => Key, function => Function,
               requestid => RequestId, config => Config,
               todo => Todo, written => true};
-        {error, Reason} ->
-            fail( "checkpoint_init failed, because ~p", [Reason] )
+        Otherwise ->
+            fail( "checkpoint_init failed, because ~p", [Otherwise] )
     end.
     
 
@@ -253,8 +253,8 @@ checkpoint_complete( Complete, #{todo := Complete, written := true,
     %% completed everything, but have previous checkpoint record to delete
     case erlcloud_ddb2:delete_item( Table, Key, [], Config ) of
         {ok, []} -> ok;
-        {error, Reason} ->
-            fail( "checkpoint_complete delete failed, because ~p", [Reason] )
+        Otherwise ->
+            fail( "checkpoint_complete delete failed, because ~p", [Otherwise] )
     end;
 checkpoint_complete( Complete, #{todo := Todo, function := Function,
                                  requestid := RequestId, table := Table,
@@ -270,8 +270,8 @@ checkpoint_complete( Complete, #{todo := Todo, function := Function,
             %% not complete all records, we fail the lambda so it will retry
             fail( "checkpoint, written for key ~p, failing to "
                   "retry records ~w", [Key, Complete] );
-        {error, Reason} ->
-            fail( "checkpoint_complete write failed, because ~p", [Reason] )
+        Otherwise ->
+            fail( "checkpoint_complete write failed, because ~p", [Otherwise] )
     end.
 
 
