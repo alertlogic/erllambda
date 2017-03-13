@@ -31,6 +31,7 @@ cleanup_service( Config ) ->
 
 setup( erllambda, Config ) ->
     Transport = proplists:get_value( transport, Config ),
+    os:putenv( "AWS_REGION", "us-west-2" ),
     os:putenv( "ERLLAMBDA_LISTEN_PROTOCOLS", atom_to_list(Transport) ),
     ok = application:load( erllambda ),
     handler_config( [{transport, Transport} | Config] );

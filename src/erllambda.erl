@@ -300,9 +300,15 @@ invoke( Handler, Event, Context ) ->
         application:set_env( erllambda, handler, undefined )
     end.
 
-invoke_credentials( #{<<"AWS_SECURITY_TOKEN">> := Token} = Context ) ->
+invoke_credentials( #{<<"AWS_SECURITY_TOKEN">> := Token} = Context )
+  when Token =/= null ->
     case application:get_env( iwsutils, config ) of
         {ok, #aws_config{security_token = Token}} -> ok;
+        _ -> invoke_update_credentials( Context )
+    end;
+invoke_credentials( #{<<"AWS_SECRET_ACCESS_KEY">> := Key} = Context  ) ->
+    case application:get_env( iwsutils, config ) of
+        {ok, #aws_config{secret_access_key = Key}} -> ok;
         _ -> invoke_update_credentials( Context )
     end.
 
