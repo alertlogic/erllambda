@@ -290,11 +290,12 @@ invoke( Handler, Event, Context ) ->
     try 
         invoke_exec( Handler, Event, Context )
     catch
-        throw:{result, Json} -> Json;
+        throw:{?MODULE, result, Json} -> Json;
         Type:Reason ->  
             Trace = erlang:get_stacktrace(),
-            fail( "terminated with exception {~w,~w} with trace ~n~p",
-                  [Type, Reason, Trace] )
+            complete_format(
+              error, "terminated with exception {~w,~w} with trace ~n~p",
+              [Type, Reason, Trace] )
     after
         message_send( "EOF: flush stdout" ),
         application:set_env( erllambda, handler, undefined )
@@ -327,9 +328,9 @@ expiration( undefined ) -> undefined.
 
 invoke_exec( Handler, Event, Context ) ->
     case Handler:handle( Event, Context ) of
-        ok ->
-            %% if the handler returns ok, we assume success
-            succeed( "completed successfully" );
+        ok -> succeed( "completed successfully" );
+        {ok, Result} -> succeed( Result );
+        {error, Reason} -> fail( Reason );
         _Anything ->
             %% if handler returns anything else, then it did not call
             %% fail/succeed, or return ok, so it is assumed to fail
@@ -347,32 +348,21 @@ format( Format, Values ) ->
     {ok, Handler} = application:get_env( erllambda, handler ),
     NewFormat = "~s: " ++ Format,
     NewValues = [Handler] ++ Values,
-    Message = iolist_to_binary( io_lib:format( NewFormat, NewValues ) ),
-    binary:replace( Message, <<"\"">>, <<"\\\"">>, [global] ).
+    iolist_to_binary( io_lib:format( NewFormat, NewValues ) ).
     
 
 complete( Field, Message ) ->
-    complete( Field, Message, [] ).
+    complete( Field, "~s", [Message] ).
 
 complete( Field, Format, Values ) ->
-    Message = format( Format, Values ),
-    AdditionalMessages = messages(),
-    Json = jiffy:encode( #{Field => Message, messages => AdditionalMessages} ),
-    throw( {result, Json} ).
+    Json = complete_format( Field, Format, Values ),
+    throw( {?MODULE, result, Json} ).
 
+complete_format( Field, Format, Values ) ->
+    Message = binary:replace( format( Format, Values ),
+                              <<"\"">>, <<"\\\"">>, [global] ),
+    jiffy:encode( #{Field => Message} ).
 
-messages() ->
-    messages( [] ).
-
-messages( Acc ) ->
-    receive
-        {erllambda_message, Message} ->
-            NewAcc = [Message | Acc],
-            messages( NewAcc )
-    after 0 ->
-            lists:reverse( Acc )
-    end.
-                   
 
 message_send( Message ) ->
     io:fwrite( "~s\n", [Message] ).
