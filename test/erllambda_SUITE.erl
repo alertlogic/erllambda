@@ -41,18 +41,20 @@ all() ->
 
 groups() ->
     [
-     {tcp, [],
-      [
-       test_verify,
-       test_process
-      ]},
-     {unix, [],
-      [
-       test_verify,
-       test_process
-      ]}
+     {tcp, [], tests()},
+     {unix, [], tests()}
     ].
 
+tests() ->
+    [
+     test_verify,
+     test_process,
+     test_success,
+     test_success_ok,
+     test_fail,
+     test_fail_error,
+     test_except_error_undef
+    ].
 
 init_per_suite( Config ) ->
     [{handler, "erllambda_test"} | Config].
@@ -80,6 +82,44 @@ test_process( Config ) ->
                 <<"AWS_CREDENTIAL_EXPIRE_TIME">> => 123456},
     ?assertMatch( {ok, #{<<"success">> := _}},
                   erllambda_ct:process( #{result => ok}, Context, Config ) ).
+
+test_success( Config ) ->
+    Message = <<"wild success">>,
+    RespMessage = <<"erllambda_test: ", Message/binary>>,
+    Event = #{test => ?FUNCTION_NAME, message => Message},
+    ?assertMatch( {ok, #{<<"success">> := RespMessage}},
+                  erllambda_ct:process( Event, #{}, Config ) ).
+
+test_success_ok( Config ) ->
+    Message = <<"wild success">>,
+    RespMessage = <<"erllambda_test: ", Message/binary>>,
+    Event = #{test => ?FUNCTION_NAME, message => Message},
+    ?assertMatch( {ok, #{<<"success">> := RespMessage}},
+                  erllambda_ct:process( Event, #{}, Config ) ).
+
+test_fail( Config ) ->
+    Message = <<"failure message">>,
+    RespMessage = <<"erllambda_test: ", Message/binary>>,
+    Event = #{test => ?FUNCTION_NAME, message => Message},
+    ?assertMatch( {error, {response, #{<<"error">> := RespMessage}}},
+                  erllambda_ct:process( Event, #{}, Config ) ).
+
+test_fail_error( Config ) ->
+    Message = <<"failure message">>,
+    RespMessage = <<"erllambda_test: ", Message/binary>>,
+    Event = #{test => ?FUNCTION_NAME, message => Message},
+    ?assertMatch( {error, {response, #{<<"error">> := RespMessage}}},
+                  erllambda_ct:process( Event, #{}, Config ) ).
+
+test_except_error_undef( Config ) ->
+    Event = #{test => ?FUNCTION_NAME},
+    ?assertMatch(
+       {error,
+        {response,
+         #{<<"error">> :=
+               <<"erllambda_test: terminated with exception {error,undef}",
+                 _Rest/binary>>}}},
+                  erllambda_ct:process( Event, #{}, Config ) ).
 
 
 %%******************************************************************************
