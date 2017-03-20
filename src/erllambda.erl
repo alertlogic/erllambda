@@ -195,7 +195,7 @@ ddb_init( Tables ) ->
 %%
 checkpoint_init( Table, Function, RequestId, Records, Config ) ->
     RecordCount = length(Records),
-    Key = [{<<"ChkpointId">>, <<Function/binary, $:, RequestId/binary>>}],
+    Key = [{<<"ChkPointId">>, <<Function/binary, $:, RequestId/binary>>}],
     Options = [consistent_read, {projection_expression, <<"ToDo">>}],
     case erlcloud_ddb2:get_item( Table, Key, Options, Config ) of
         {ok, []} ->
