@@ -195,18 +195,19 @@ ddb_init( Tables ) ->
 %%
 checkpoint_init( Table, Function, RequestId, Records, Config ) ->
     RecordCount = length(Records),
-    Key = [{<<"ChkPointId">>, <<Function/binary, $:, RequestId/binary>>}],
+    KeyVal = <<Function/binary, $:, RequestId/binary>>,
+    Key = [{<<"ChkPointId">>, KeyVal}],
     Options = [consistent_read, {projection_expression, <<"ToDo">>}],
     case erlcloud_ddb2:get_item( Table, Key, Options, Config ) of
         {ok, []} ->
             %% no checkpoint found, which is normal operation w/no failures
             Todo = ordsets:from_list( lists:seq( 1, RecordCount ) ),
-            #{table => Table, key => Key, function => Function,
+            #{table => Table, key => KeyVal, function => Function,
               requestid => RequestId, config => Config,
               todo => Todo, written => false};
         {ok, [{<<"ToDo">>, ListTodo}]} ->
             Todo = ordsets:from_list(ListTodo),
-            #{table => Table, key => Key, function => Function,
+            #{table => Table, key => KeyVal, function => Function,
               requestid => RequestId, config => Config,
               todo => Todo, written => true};
         Otherwise ->
@@ -248,22 +249,21 @@ checkpoint_todo( #{} ) -> undefined.
 %%
 checkpoint_complete( Complete, #{todo := Complete, written := false} ) -> ok;
 checkpoint_complete( Complete, #{todo := Complete, written := true,
-                                 table := Table, key := Key,
+                                 table := Table, key := KeyVal,
                                  config := Config} ) ->
     %% completed everything, but have previous checkpoint record to delete
+    Key = [{<<"ChkPointId">>, KeyVal}],
     case erlcloud_ddb2:delete_item( Table, Key, [], Config ) of
         {ok, []} -> ok;
         Otherwise ->
             fail( "checkpoint_complete delete failed, because ~p", [Otherwise] )
     end;
-checkpoint_complete( Complete, #{todo := Todo, function := Function,
-                                 requestid := RequestId, table := Table,
+checkpoint_complete( Complete, #{todo := Todo, table := Table,
                                  key := Key, config := Config} ) ->
     %% complete some of the remaining record, write (update) checkpoint
     NewTodo = ordsets:subtract( Todo, Complete ),
-    Item = [{<<"ChkpointId">>, Key},
-            {s, <<"Function">>, Function}, {s, <<"RequestId">>, RequestId},
-            {ns, <<"Todo">>, ordsets:to_list(NewTodo)}],
+    Item = [{<<"ChkPointId">>, Key},
+            {<<"ToDo">>, {ns, ordsets:to_list(NewTodo)}}],
     case erlcloud_ddb2:put_item( Table, Item, [], Config ) of
         {ok, []} ->
             %% we succeeded writing the checkpoint record, but since we did
