@@ -76,9 +76,9 @@ test_verify( Config ) ->
     ?assertMatch( {ok, undefined}, erllambda_ct:verify( Config ) ).
 
 test_process( Config ) ->
-    Context = #{<<"AWS_ACCESS_KEY_ID">> => "ID",
-                <<"AWS_SECRET_ACCESS_KEY">> => "KEY",
-                <<"AWS_SECURITY_TOKEN">> => "TOKEN",
+    Context = #{<<"AWS_ACCESS_KEY_ID">> => <<"ID">>,
+                <<"AWS_SECRET_ACCESS_KEY">> => <<"KEY">>,
+                <<"AWS_SECURITY_TOKEN">> => <<"TOKEN">>,
                 <<"AWS_CREDENTIAL_EXPIRE_TIME">> => 123456},
     ?assertMatch( {ok, #{<<"success">> := _}},
                   erllambda_ct:process( #{result => ok}, Context, Config ) ).
