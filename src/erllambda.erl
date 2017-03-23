@@ -317,11 +317,16 @@ invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
                              <<"AWS_SECRET_ACCESS_KEY">> := Key,
                              <<"AWS_SECURITY_TOKEN">> := Token,
                              <<"AWS_CREDENTIAL_EXPIRE_TIME">> := Expire} ) ->
-    Config = #aws_config{ access_key_id = Id, secret_access_key = Key,
-                          security_token = Token,
+    Config = #aws_config{ access_key_id = to_list(Id),
+                          secret_access_key = to_list(Key),
+                          security_token = to_list(Token),
                           expiration = expiration(Expire) },
     application:set_env( iwsutil, config, Config ).
 
+to_list( V ) when is_list(V) -> V;
+to_list( V ) when is_binary(V) -> binary_to_list(V);
+to_list( V ) -> V.
+    
 expiration( V ) when is_integer(V) -> V;
 expiration( null ) -> undefined;
 expiration( undefined ) -> undefined.
