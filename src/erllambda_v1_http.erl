@@ -5,7 +5,7 @@
 %% driver to interface with the Erlang node.
 %%
 %%
-%% @copyright 2016 Alert Logic, Inc
+%% @copyright 2017 Alert Logic, Inc
 %% @author Paul Fisher <pfisher@alertlogic.com>
 %%%---------------------------------------------------------------------------
 -module(erllambda_v1_http).
@@ -32,14 +32,19 @@
 %% This function is called for each request, and blocks until complete.
 %%
 init( Request, [] ) ->
-    Method = method( cowboy_req:method( Request ) ),
-    <<"/eee/v1/", Module/binary>> = cowboy_req:path( Request ),
+    RawMethod = cowboy_req:method( Request ),
+    Method = method( RawMethod ),
+    <<"/eee/v1/", Module/binary>> = Path = cowboy_req:path( Request ),
+    QueryString = cowboy_req:qs( Request ),
     NewRequest =
         try request( Method, Module, Request ) of
             {ok, Status, MethodRequest} ->
-                cowboy_req:reply( Status, MethodRequest );
+                cowboy_req:reply( Status, MethodRequest ),
+                access_log( RawMethod, Path, QueryString, Status );
             {ok, Status, Headers, Body, MethodRequest} ->
-                cowboy_req:reply( Status, Headers, Body, MethodRequest )
+                cowboy_req:reply( Status, Headers, Body, MethodRequest ),
+                access_log( RawMethod, Path, QueryString, Status,
+                            byte_size(Body) )
         catch
             Type:Reason ->
                 Trace = erlang:get_stacktrace(),
@@ -77,6 +82,30 @@ terminate( _Reason, _Request, [] ) -> ok.
 method( <<"GET">> ) -> get;
 method( <<"POST">> ) -> post.
 
+
+access_log( Method, Path, QueryString, Status ) ->
+    access_log( Method, Path, QueryString, Status, 0 ).
+
+access_log( Method, Path, QueryString, Status, Size ) ->
+    {{Year, Month, Day}, {Hour, Min, Sec}} = calendar:universal_time(),
+    io:format( "127.0.0.1 - - [~2..0b/~s/~4..0b:~2..0b:~2..0b:~2..0b -0000] "
+               "\"~s ~s?~s HTTP/1.1\" ~b ~b~n",
+               [Day, month(Month), Year, Hour, Min, Sec,
+                Method, Path, QueryString, Status, Size] ).
+
+month(1) -> 'Jan';
+month(2) -> 'Feb';
+month(3) -> 'Mar';
+month(4) -> 'Apr';
+month(5) -> 'May';
+month(6) -> 'Jun';
+month(7) -> 'Jul';
+month(8) -> 'Aug';
+month(9) -> 'Sep';
+month(10) -> 'Oct';
+month(11) -> 'Nov';
+month(12) -> 'Dec'.
+    
     
 request( get, BinModule, Request ) ->
     try binary_to_existing_atom( BinModule, latin1 ) of
@@ -84,32 +113,20 @@ request( get, BinModule, Request ) ->
             case code:is_loaded( Module ) of
                 {file, _Filename} ->
                     {ok, 200, Request};
-                false ->
-                    {ok, 200, json_headers(),
-                     <<"{\"error\": \"module is unknown1\", "
-                       " \"module\": \"", BinModule/binary, "\"}">>, Request}
+                false -> unknown_handler( BinModule, Request )
             end
     catch
-        error:badarg ->
-            {ok, 200, json_headers(),
-             <<"{\"error\": \"module is unknown2\", "
-               " \"module\": \"", BinModule/binary, "\"}">>, Request}
+        error:badarg -> unknown_handler( BinModule, Request )
     end;
 request( post, BinModule, Request ) ->
     try binary_to_existing_atom( BinModule, latin1 ) of
         Module ->
             case cowboy_req:has_body( Request ) of
-                true ->
-                    post_body( Module, Request );
-                false ->
-                    {ok, 200, json_headers(),
-                     <<"{\"error\": \"body missing from post\"}">>, Request}
+                true -> post_body( Module, Request );
+                false -> invalid_request( "Missing request body", Request )
             end
     catch
-        error:badarg ->
-            {ok, 200, json_headers(),
-             <<"{\"error\": \"module is unknown3\", "
-               " \"module\": \"", BinModule/binary, "\"}">>, Request}
+        error:badarg -> unknown_handler( BinModule, Request )
     end.
 
 post_body( Module, Request ) ->
@@ -134,20 +151,40 @@ post_process( Module, Body, Request ) ->
     try jiffy:decode( Body, [return_maps] ) of
         #{<<"event">> := Event, <<"context">> := Context} ->
             Response = erllambda:invoke( Module, Event, Context ),
-            {ok, 200, json_headers(), Response, Request};
+            post_response( Response, Request );
         #{<<"context">> := _} ->
-            {ok, 200, json_headers(),
-             <<"{\"error\": \"'event' missing from post json\"}">>, Request};
+            invalid_request( "Event object missing from body", Request );
         _Invalid ->
-            {ok, 200, json_headers(),
-             <<"{\"error\": \"'context' missing from post json\"}">>, Request}
+            invalid_request( "Context object missing from body", Request )
     catch
-        error:badarg ->
-            {ok, 200, json_headers(),
-             <<"{\"error\": \"post json failed to parse\"}">>, Request}
+        throw:{error, {_, invalid_json}} ->
+            invalid_request( "Invalid JSON document", Request )
     end.            
+
+post_response( {ok, Response}, Request ) ->
+    {ok, 200, json_headers(), Response, Request};
+post_response( {error, {Status, Response}}, Request ) ->
+    {ok, Status, json_headers(), Response, Request}.
+
+
+
+unknown_handler( Handler, Request ) ->
+    {ok, 404, json_headers(),
+     error( "UnknownHandler", "The handler ~s cannot be found", [Handler] ),
+     Request}.
+
+
+invalid_request( Reason, Request ) ->
+    {ok, 400, json_headers(), error( "InvalidRequest", Reason, [] ), Request}.
 
 
 json_headers() ->
     #{<<"content-type">> => <<"application/json">>}.
+
+error( Type, Format, Values ) ->
+    NewFormat = "{\"errorType\": \"~s\", \"errorMessage\": \""
+        ++ Format ++ "\"}",
+    NewValues = [Type | Values],
+    iolist_to_binary( io_lib:format( NewFormat, NewValues ) ).
+
 

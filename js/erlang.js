@@ -8,6 +8,17 @@ const glob = require('glob');
 const future = require('future');
 var flushFuture = null;
 
+function APIError(json) {
+    if( json && json.errorType ) {
+        this.name = json.errorType; }
+        if( json.errorMessage ) { this.message = json.errorMessage; }
+    } else {
+        this.name = "InvalidResponse"
+        this.message = "request failure, with unexpected response";
+    }
+}
+APIError.prototype = new Error();
+
 function ping(appmod, callback) {
     const options = {
         socketPath: '/tmp/eeecomm.sock',
@@ -18,8 +29,14 @@ function ping(appmod, callback) {
     http.request( options, function(response) {
         if( response.statusCode === 200 ) { callback(); }
         else {
-            callback( {error: 'ping response status: '
-                       + response.statusCode} );
+            var resp_body = '';
+            response.on('data', function(chunk) {
+                resp_body += chunk;
+            });
+            response.on('end', function() {
+                const json = body === '' ? null : JSON.parse( resp_body );
+                callback( new APIError(json) );
+            });
         }
     }).on('error', function(error) {
         callback(error);
@@ -115,7 +132,7 @@ function start(appmod, script, env, callback) {
             child.stdout.on('data', output );
             child.stderr.on('data', output );
             child.on('close', (code) => {
-                console.log( '${script} executed with ${code}' );
+                console.log( '%s executed with %d', script, code );
             });
 
             const deadline = Date.now() + 10000;
@@ -162,13 +179,12 @@ module.exports.invoke = function(appmod, event, context, callback) {
             resp_body += chunk;
         });
         response.on('end', function() {
+            const json = body === '' ? null : JSON.parse( resp_body );
             flushFuture.when( function() {
                 if( response.statusCode === 200 ) {
-                    const json = JSON.parse( resp_body );
-                    callback( json.error, json.success );
+                    callback( json.success );
                 } else {
-                    callback( 'unexpected status code: '
-                              + response.statusCode );
+                    callback( new APIError(json) );
                 }
                 flushFuture = null;
             });

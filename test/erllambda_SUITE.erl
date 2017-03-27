@@ -53,7 +53,11 @@ tests() ->
      test_success_ok,
      test_fail,
      test_fail_error,
-     test_except_error_undef
+     test_except_error_undef,
+     test_unknown_handler,
+     test_invalid_request,
+     test_invalid_request_no_event,
+     test_invalid_request_no_context
     ].
 
 init_per_suite( Config ) ->
@@ -85,44 +89,72 @@ test_process( Config ) ->
 
 test_success( Config ) ->
     Message = <<"wild success">>,
-    RespMessage = <<"erllambda_test: ", Message/binary>>,
     Event = #{test => ?FUNCTION_NAME, message => Message},
-    ?assertMatch( {ok, #{<<"success">> := RespMessage}},
+    ?assertMatch( {ok, #{<<"success">> := Message}},
                   erllambda_ct:process( Event, #{}, Config ) ).
 
 test_success_ok( Config ) ->
     Message = <<"wild success">>,
-    RespMessage = <<"erllambda_test: ", Message/binary>>,
     Event = #{test => ?FUNCTION_NAME, message => Message},
-    ?assertMatch( {ok, #{<<"success">> := RespMessage}},
+    ?assertMatch( {ok, #{<<"success">> := Message}},
                   erllambda_ct:process( Event, #{}, Config ) ).
 
 test_fail( Config ) ->
     Message = <<"failure message">>,
-    RespMessage = <<"erllambda_test: ", Message/binary>>,
     Event = #{test => ?FUNCTION_NAME, message => Message},
-    ?assertMatch( {error, {response, #{<<"error">> := RespMessage}}},
+    ?assertMatch(
+       {error, {response, #{<<"errorType">> := <<"HandlerFailure">>,
+                            <<"errorMessage">> := Message}}},
                   erllambda_ct:process( Event, #{}, Config ) ).
 
 test_fail_error( Config ) ->
     Message = <<"failure message">>,
-    RespMessage = <<"erllambda_test: ", Message/binary>>,
     Event = #{test => ?FUNCTION_NAME, message => Message},
-    ?assertMatch( {error, {response, #{<<"error">> := RespMessage}}},
+    ?assertMatch(
+       {error, {response, #{<<"errorType">> := <<"HandlerFailure">>,
+                            <<"errorMessage">> := Message}}},
                   erllambda_ct:process( Event, #{}, Config ) ).
 
 test_except_error_undef( Config ) ->
+    Message = <<"terminated with exception {error,undef}">>,
     Event = #{test => ?FUNCTION_NAME},
     ?assertMatch(
-       {error,
-        {response,
-         #{<<"error">> :=
-               <<"erllambda_test: terminated with exception {error,undef}",
-                 _Rest/binary>>}}},
-                  erllambda_ct:process( Event, #{}, Config ) ).
+       {error, {response, #{<<"errorType">> := <<"HandlerFailure">>,
+                            <<"errorMessage">> := Message}}},
+       erllambda_ct:process( Event, #{}, Config ) ).
+
+test_unknown_handler( Config ) ->
+    Transport = proplists:get_value( transport, Config ),
+    Options = [{skip_module_check, true}, {transport, Transport}],
+    EeeConfig = eee_ct:setup( erllambda_wtf, Options ),
+    Event = #{test => fubar_function},
+    ?assertMatch(
+       {error, {response, #{<<"errorType">> := <<"UnknownHandler">>}}},
+       eee_ct:verify( EeeConfig ) ).
+
+test_invalid_request( Config ) ->
+    Body = <<"WAT?">>,
+    ?assertMatch(
+       {error, {response, #{<<"errorType">> := <<"InvalidRequest">>}}},
+       invalid_request( Body, proplists:get_value( eee_ct, Config ) ) ).
+
+test_invalid_request_no_event( Config ) ->
+    Body = jiffy:encode( #{context => #{}} ),
+    ?assertMatch(
+       {error, {response, #{<<"errorType">> := <<"InvalidRequest">>}}},
+       invalid_request( Body, proplists:get_value( eee_ct, Config ) ) ).
+
+test_invalid_request_no_context( Config ) ->
+    Body = jiffy:encode( #{event => #{}} ),
+    ?assertMatch(
+       {error, {response, #{<<"errorType">> := <<"InvalidRequest">>}}},
+       invalid_request( Body, proplists:get_value( eee_ct, Config ) ) ).
 
 
 %%******************************************************************************
 %% Internal Functions
 %%******************************************************************************
-
+invalid_request( Body, #{transport := {Transport, _}} = Config ) ->
+    Uri = eee_ct:uri( [], Config ),
+    Headers = eee_ct:headers( Transport ),
+    eee_ct:common_result( eee_ct:invoke( Uri, Headers, Body, Config ) ).
