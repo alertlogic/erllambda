@@ -63,27 +63,30 @@
 %%%---------------------------------------------------------------------------
 %% @doc Complete processing with success
 %%
-succeed( Error ) ->
-    complete( success, Error ).
+succeed( Map ) when is_map(Map)  ->
+    complete( #{success => Map} );
+succeed( Value ) when is_binary(Value); is_list(Value) ->
+    succeed( "~s", [Value] ).
 
 succeed( Format, Values ) ->
-    complete( success, Format, Values ).
+    complete( #{success => format( Format, Values )} ).
 
 
 %%%---------------------------------------------------------------------------
--spec fail( Error :: iolist() ) -> none().
+-spec fail( Message :: iolist() ) -> none().
 %%%---------------------------------------------------------------------------
 %% @doc Complete a processing with failure
 %%
-fail( Error ) ->
-    complete( error, Error ).
+fail( Message ) ->
+    fail( "~s", [Message] ).
 
 fail( Format, Values ) ->
-    complete( error, Format, Values ).
+    complete( #{errorType => 'HandlerFailure',
+                errorMessage => format( Format, Values )} ).
 
 
 %%%---------------------------------------------------------------------------
--spec message( Error :: iolist() ) -> ok.
+-spec message( Message :: iolist() ) -> ok.
 %%%---------------------------------------------------------------------------
 %% @doc Send an informational message to be logged
 %%
@@ -290,12 +293,17 @@ invoke( Handler, Event, Context ) ->
     try 
         invoke_exec( Handler, Event, Context )
     catch
-        throw:{?MODULE, result, Json} -> Json;
+        throw:{?MODULE, result, Json} -> {ok, Json};
+        throw:{?MODULE, failure, Json} -> {error, {500, Json}};
         Type:Reason ->  
             Trace = erlang:get_stacktrace(),
-            complete_format(
-              error, "terminated with exception {~w,~w} with trace ~n~p",
-              [Type, Reason, Trace] )
+            Message = iolist_to_binary(
+                        io_lib:format( "terminated with exception {~w,~w}",
+                                       [Type, Reason] ) ),
+            message_send( format( "~s with trace ~n~p", [Message, Trace] ) ),
+            Response = jiffy:encode( #{errorType => 'HandlerFailure',
+                                       errorMessage => Message} ),
+            {error, {500, Response}}
     after
         message_send( "EOF: flush stdout" ),
         application:set_env( erllambda, handler, undefined )
@@ -333,9 +341,9 @@ expiration( undefined ) -> undefined.
 
 invoke_exec( Handler, Event, Context ) ->
     case Handler:handle( Event, Context ) of
-        ok -> succeed( "completed successfully" );
-        {ok, Result} -> succeed( Result );
-        {error, Reason} -> fail( Reason );
+        ok -> {ok, succeed( "completed successfully" )};
+        {ok, Result} -> {ok, succeed( Result )};
+        {error, Reason} -> {error, {500, fail( Reason )}};
         _Anything ->
             %% if handler returns anything else, then it did not call
             %% fail/succeed, or return ok, so it is assumed to fail
@@ -350,23 +358,17 @@ format( Message ) ->
     format( Message, [] ).
 
 format( Format, Values ) ->
-    {ok, Handler} = application:get_env( erllambda, handler ),
-    NewFormat = "~s: " ++ Format,
-    NewValues = [Handler] ++ Values,
-    iolist_to_binary( io_lib:format( NewFormat, NewValues ) ).
+    iolist_to_binary( io_lib:format( Format, Values ) ).
     
 
-complete( Field, Message ) ->
-    complete( Field, "~s", [Message] ).
+complete( #{success := _} = Response ) ->
+    complete( result, Response );
+complete( #{errorType := _} = Response ) ->
+    complete( failure, Response ).
 
-complete( Field, Format, Values ) ->
-    Json = complete_format( Field, Format, Values ),
-    throw( {?MODULE, result, Json} ).
-
-complete_format( Field, Format, Values ) ->
-    Message = binary:replace( format( Format, Values ),
-                              <<"\"">>, <<"\\\"">>, [global] ),
-    jiffy:encode( #{Field => Message} ).
+complete( Type, Response ) ->
+    Message = jiffy:encode( Response ),
+    throw( {?MODULE, Type, Message} ).
 
 
 message_send( Message ) ->
