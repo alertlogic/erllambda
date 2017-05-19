@@ -10,8 +10,8 @@ var flushFuture = null;
 
 function APIError(json) {
     if( json && json.errorType ) {
-        this.name = json.errorType; }
-        if( json.errorMessage ) { this.message = json.errorMessage; }
+        this.name = json.errorType;
+        this.message = json.errorMessage;
     } else {
         this.name = "InvalidResponse"
         this.message = "request failure, with unexpected response";
