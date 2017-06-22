@@ -49,8 +49,8 @@ protocols() ->
 cowboy_start( tcp, Dispatch ) ->
     {ok, ConfigPort} = application:get_env( erllambda, tcp_port ),
     Port = os:getenv( "ERLLAMBDA_TCP_PORT", ConfigPort ),
-    Options = [{port, to_integer(Port)}],
-    cowboy:start_clear( tcp, 1, Options, #{env => #{dispatch => Dispatch}} );
+    Options = [{num_acceptors,1}, {port, to_integer(Port)}],
+    cowboy:start_clear( tcp, Options, #{env => #{dispatch => Dispatch}} );
 cowboy_start( unix, Dispatch ) ->
     %% socket file configured needs to be cleared out if we are to
     %% start and the directory needs to exist
@@ -67,8 +67,8 @@ cowboy_start( unix, Dispatch ) ->
                   {active, false}, {packet, raw},
                   {reuseaddr, true}, {ifaddr, {local, File}}],
     {ok, Socket} = gen_tcp:listen( 0, TcpOptions ),
-    Options = [{socket, Socket}],
-    cowboy:start_clear( unix, 1, Options, #{env => #{dispatch => Dispatch}} ).
+    Options = [{num_acceptors,1},{socket, Socket}],
+    cowboy:start_clear( unix, Options, #{env => #{dispatch => Dispatch}} ).
 
 to_atom( V ) when is_atom(V) -> V;
 to_atom( V ) when is_list(V) -> list_to_atom( V );
