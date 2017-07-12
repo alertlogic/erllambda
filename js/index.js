@@ -23,12 +23,8 @@ exports.handler = function(event, context) {
         creds.expireTime
         ? Math.floor(creds.expireTime.getTime()/1000)
         : creds.expireTime;
-    var env = {
-        AWS_REGION: process.env.AWS_DEFAULT_REGION,
-        AWS_LAMBDA_LOG_GROUP_NAME: process.env.AWS_LAMBDA_LOG_GROUP_NAME,
-        AWS_LAMBDA_LOG_STREAM_NAME: process.env.AWS_LAMBDA_LOG_STREAM_NAME
-    };
-    erlang.connect( handler.module, handler.command, env, function(error) {
+
+    erlang.connect( handler.module, handler.command, process.env, function(error) {
         if( error ) {
             context.fail( error ); return;
         }
