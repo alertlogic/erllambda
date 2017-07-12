@@ -341,9 +341,9 @@ expiration( undefined ) -> undefined.
 
 invoke_exec( Handler, Event, Context ) ->
     case Handler:handle( Event, Context ) of
-        ok -> {ok, succeed( "completed successfully" )};
-        {ok, Result} -> {ok, succeed( Result )};
-        {error, Reason} -> {error, {500, fail( Reason )}};
+        ok -> succeed( "completed successfully" );
+        {ok, Result} -> succeed( Result );
+        {error, Reason} -> fail( Reason );
         _Anything ->
             %% if handler returns anything else, then it did not call
             %% fail/succeed, or return ok, so it is assumed to fail

@@ -182,7 +182,7 @@ module.exports.invoke = function(appmod, event, context, callback) {
             const json = body === '' ? null : JSON.parse( resp_body );
             flushFuture.when( function() {
                 if( response.statusCode === 200 ) {
-                    callback( json.success );
+                    callback( null, json.success );
                 } else {
                     callback( new APIError(json) );
                 }
