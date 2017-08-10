@@ -1,7 +1,8 @@
 APP := erllambda
 
-ERLANG_VERSION ?= r19_2
+ERLANG_VERSION ?= r19_3_6_1
 COMPS_NEEDED := erlang_$(ERLANG_VERSION),rebar3,setenv
+NATIVE_LIBS := true
 
 all: unit
 
