@@ -118,7 +118,7 @@ message( Format, Values ) ->
 %% @doc Send custom metrics to Datadog
 %%
 %% This function will send log message from lambda using following format
-%% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|["tag1:value","tag2"]
+%% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|"tag1:value,"tag2"
 %% where metric_type :: "count" | "gauge" | "histogram" | "check"
 %%
 metric(MName) ->
@@ -126,10 +126,16 @@ metric(MName) ->
 metric(MName, Val) ->
     metric(MName, Val, "count").
 metric(MName, Val, Type) ->
-    metric(MName, Val, Type, "#").
-metric(MName, Val, Type, [{_T,_V} | _] = Tags) ->
-    metric(MName, Val, Type, "#" ++ string:join(",", [T ++ ":" ++ V || {T,V} <- Tags]));
+    metric(MName, Val, Type, []).
 metric(MName, Val, Type, Tags) ->
+    NewTags = "#" ++
+        string:join(
+            lists:map(
+                fun ({T,V}) -> to_string(T) ++ ":" ++ to_string(V);
+                    (OtherTag) -> OtherTag
+                end, Tags
+            ), ","
+        ),
     Ts = os:system_time(second),
     Msg = string:join([
         "MONITORING",
@@ -137,7 +143,7 @@ metric(MName, Val, Type, Tags) ->
         integer_to_list(Val),
         Type,
         MName,
-        Tags
+        NewTags
     ], "|"),
     message(Msg).
 
@@ -405,6 +411,16 @@ complete( Type, Response ) ->
 message_send( Message ) ->
     io:fwrite( "~s\n", [Message] ).
 
+to_string(Value) when is_list(Value) ->
+    Value;
+to_string(Value) when is_atom(Value) ->
+    atom_to_list(Value);
+to_string(Value) when is_integer(Value) ->
+    integer_to_list(Value);
+to_string(Value) when is_float(Value) ->
+    float_to_list(Value);
+to_string(Value) when is_binary(Value) ->
+    binary_to_list(Value).
 
 %%====================================================================
 %% Test Functions
