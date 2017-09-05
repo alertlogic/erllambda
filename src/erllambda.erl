@@ -132,7 +132,7 @@ metric(MName, Val, Type, Tags) ->
         string:join(
             lists:map(
                 fun ({T,V}) -> to_string(T) ++ ":" ++ to_string(V);
-                    (OtherTag) -> OtherTag
+                    (OtherTag) -> to_string(OtherTag)
                 end, Tags
             ), ","
         ),
@@ -141,8 +141,8 @@ metric(MName, Val, Type, Tags) ->
         "MONITORING",
         integer_to_list(Ts),
         integer_to_list(Val),
-        Type,
-        MName,
+        to_string(Type),
+        to_string(MName),
         NewTags
     ], "|"),
     message(Msg).
