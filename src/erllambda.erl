@@ -118,8 +118,8 @@ message( Format, Values ) ->
 %% @doc Send custom metrics to Datadog
 %%
 %% This function will send log message from lambda using following format
-%% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|"tag1:value,"tag2"
-%% where metric_type :: "count" | "gauge" | "histogram" | "check"
+%% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|#tag1:value,tag2
+%% where metric_type :: "count" | "gauge"
 %%
 metric(MName) ->
     metric(MName, 1).
@@ -127,22 +127,26 @@ metric(MName, Val) ->
     metric(MName, Val, "count").
 metric(MName, Val, Type) ->
     metric(MName, Val, Type, []).
-metric(MName, Val, Type, Tags) ->
+metric(MName, Val, Type, Tags)
+        when is_list(MName)
+        andalso (Type == "count" orelse Type == "gauge")
+        andalso is_integer(Val) ->
     NewTags = "#" ++
         string:join(
             lists:map(
-                fun ({T,V}) -> to_string(T) ++ ":" ++ to_string(V);
-                    (OtherTag) -> to_string(OtherTag)
+                fun ({T,V}) -> to_list(T) ++ ":" ++ to_list(V);
+                    (OtherTag) -> to_list(OtherTag)
                 end, Tags
-            ), ","
+            ),
+            ","
         ),
     Ts = os:system_time(second),
     Msg = string:join([
         "MONITORING",
-        integer_to_list(Ts),
-        integer_to_list(Val),
-        to_string(Type),
-        to_string(MName),
+        to_list(Ts),
+        to_list(Val),
+        Type,
+        MName,
         NewTags
     ], "|"),
     message(Msg).
@@ -370,6 +374,8 @@ invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
 
 to_list( V ) when is_list(V) -> V;
 to_list( V ) when is_binary(V) -> binary_to_list(V);
+to_list( V ) when is_atom(V) -> atom_to_list(V);
+to_list( V ) when is_integer(V) -> integer_to_list(V);
 to_list( V ) -> V.
     
 expiration( V ) when is_integer(V) -> V;
@@ -410,17 +416,6 @@ complete( Type, Response ) ->
 
 message_send( Message ) ->
     io:fwrite( "~s\n", [Message] ).
-
-to_string(Value) when is_list(Value) ->
-    Value;
-to_string(Value) when is_atom(Value) ->
-    atom_to_list(Value);
-to_string(Value) when is_integer(Value) ->
-    integer_to_list(Value);
-to_string(Value) when is_float(Value) ->
-    float_to_list(Value);
-to_string(Value) when is_binary(Value) ->
-    binary_to_list(Value).
 
 %%====================================================================
 %% Test Functions
