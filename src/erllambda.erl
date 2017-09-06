@@ -18,6 +18,7 @@
 
 %% public - high-level migration orchestration endpoints
 -export([succeed/1, succeed/2, fail/1, fail/2, message/1, message/2]).
+-export([metric/1, metric/2, metric/3, metric/4]).
 -export([region/0, config/0]).
 -export([ddb_init/1, ddb_init/3]).
 -export([checkpoint_init/5, checkpoint_todo/1, checkpoint_complete/2]).
@@ -109,6 +110,46 @@ message( Message ) ->
 message( Format, Values ) ->
     Message = format( Format, Values ),
     message_send( Message ).
+
+
+-spec metric(MetricName :: string(), MetricValue :: integer(),
+             Type :: string(), Tags :: list()) -> ok.
+%%%---------------------------------------------------------------------------
+%% @doc Send custom metrics to Datadog
+%%
+%% This function will send log message from lambda using following format
+%% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|#tag1:value,tag2
+%% where metric_type :: "count" | "gauge"
+%%
+metric(MName) ->
+    metric(MName, 1).
+metric(MName, Val) ->
+    metric(MName, Val, "count").
+metric(MName, Val, Type) ->
+    metric(MName, Val, Type, []).
+metric(MName, Val, Type, Tags)
+        when is_list(MName)
+        andalso (Type == "count" orelse Type == "gauge")
+        andalso is_integer(Val) ->
+    NewTags = "#" ++
+        string:join(
+            lists:map(
+                fun ({T,V}) -> to_list(T) ++ ":" ++ to_list(V);
+                    (OtherTag) -> to_list(OtherTag)
+                end, Tags
+            ),
+            ","
+        ),
+    Ts = os:system_time(second),
+    Msg = string:join([
+        "MONITORING",
+        to_list(Ts),
+        to_list(Val),
+        Type,
+        MName,
+        NewTags
+    ], "|"),
+    message(Msg).
 
 
 %%%---------------------------------------------------------------------------
@@ -333,6 +374,8 @@ invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
 
 to_list( V ) when is_list(V) -> V;
 to_list( V ) when is_binary(V) -> binary_to_list(V);
+to_list( V ) when is_atom(V) -> atom_to_list(V);
+to_list( V ) when is_integer(V) -> integer_to_list(V);
 to_list( V ) -> V.
     
 expiration( V ) when is_integer(V) -> V;
@@ -373,7 +416,6 @@ complete( Type, Response ) ->
 
 message_send( Message ) ->
     io:fwrite( "~s\n", [Message] ).
-
 
 %%====================================================================
 %% Test Functions
