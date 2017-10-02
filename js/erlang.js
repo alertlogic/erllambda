@@ -179,7 +179,7 @@ module.exports.invoke = function(appmod, event, context, callback) {
             resp_body += chunk;
         });
         response.on('end', function() {
-            const json = body === '' ? null : JSON.parse( resp_body );
+            const json = resp_body === '' ? null : JSON.parse( resp_body );
             flushFuture.when( function() {
                 if( response.statusCode === 200 ) {
                     callback( null, json.success );
