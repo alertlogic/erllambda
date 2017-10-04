@@ -24,8 +24,13 @@
     %% name of the socket file to use when running in lambda mode
     {socket_file, "/tmp/eeecomm.sock"},
 
+    %% idle timeout for Erl side of the Lambda
+    %% let it be 5min and let JS side kill us accordingly
+    %% make it configurable for EEE
+    {idle_timeout, 300000},
+
     %% port number to use when running in ecs mode.  This value can be
-    %% overriden via the environment variable ERLLAMBDA_TCP_PORT.
+    %% overridden via the environment variable ERLLAMBDA_TCP_PORT.
     {tcp_port, 6789}
    ]},
   {modules, []},

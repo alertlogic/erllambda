@@ -192,6 +192,12 @@ module.exports.invoke = function(appmod, event, context, callback) {
     }).on('error', function(error) {
         callback(error);
     });
+    req.on('socket',function(socket){
+        // give erlang side the same time for respond
+        socket.setTimeout(context.getRemainingTimeInMillis(), function(){
+            req.abort();  //causes error event ↑
+        });
+    });
     req.write( body );
     req.end();
 };
