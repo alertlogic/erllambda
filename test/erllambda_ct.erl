@@ -19,9 +19,8 @@
 %% Public Functions
 %%%=============================================================================
 setup_service( Config ) ->
-    Setups = [erllambda, eee_ct],
+    Setups = [erllambda, eee_ct, {apps, erllambda}],
     NewConfig = lists:foldl( fun setup/2, Config, Setups ),
-    {ok, _} = application:ensure_all_started( erllambda ),
     [{erllambda_cleanups, Setups} | NewConfig].
 
 cleanup_service( Config ) ->
@@ -29,6 +28,15 @@ cleanup_service( Config ) ->
     lists:foldl( fun cleanup/2, Config, Cleanups ).
     
 
+setup( {apps, App}, Config ) ->
+    {ok, Deps} = application:ensure_all_started(App),
+    case proplists:get_value(apps_started, Config) of
+        undefined ->
+            [{apps_started, Deps} | Config];
+        Others ->
+            [{apps_started, Others++Deps}
+             | proplists:delete(apps_started, Config)]
+    end;
 setup( erllambda, Config ) ->
     Transport = proplists:get_value( transport, Config ),
     os:putenv( "AWS_REGION", "us-west-2" ),
@@ -42,10 +50,13 @@ setup( eee_ct, Config ) ->
     [{eee_ct, EeeConfig} | Config].
 
 
+cleanup( {apps, _}, Config ) ->
+    [ application:stop(A) || A <- proplists:get_value(apps_started, Config) ],
+    Config;
 cleanup( erllambda, Config ) ->
     application:stop( erllambda ),
     application:unload( erllambda ),
-    Config;
+    purge_handler( Config );
 cleanup( eee_ct, Config ) ->
     eee_ct:cleanup( proplists:get_value( eee_ct, Config ) ),
     Config.
@@ -69,3 +80,9 @@ handler_config( Config ) ->
         true -> Config;
         false -> [{handler, "erllambda_test"} | Config]
     end.
+
+purge_handler( Config ) ->
+    Module = list_to_atom(
+               proplists:get_value( handler, Config, "erllambda_test" ) ),
+    code:purge( Module ),
+    Config.

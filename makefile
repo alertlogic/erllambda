@@ -1,5 +1,6 @@
 APP := erllambda
 
+CFN_STACK_NAME = erllambda-env
 ERLANG_VERSION ?= r19_3_6_1
 COMPS_NEEDED := erlang_$(ERLANG_VERSION),rebar3,setenv
 NATIVE_LIBS := true
@@ -13,4 +14,7 @@ env :
 MAKE_HOME = $(abspath $(or $(wildcard _checkouts/makeincl),\
 			   $(wildcard _build/makeincl)))
 -include $(MAKE_HOME)/makefile.allib
+-include $(MAKE_HOME)/makefile.cfnstack
 export MAKE_HOME
+
+$(call set,STACK_PARAMS,baseStackName,$(ENVIRON))

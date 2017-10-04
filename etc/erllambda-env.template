@@ -1,0 +1,41 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Erllambda stack creation template",
+
+  "Parameters": {
+    "baseStackName": {
+      "Description": "Name of the environment",
+      "Type": "String"
+    }
+  },
+
+  "Resources": {
+    "TableErllambdaCheckpoint": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": {
+          "Fn::Join": ["-", [{"Ref": "AWS::Region"}, {"Ref": "baseStackName"}, "erllambda","checkpoint"]]
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": "5",
+          "WriteCapacityUnits": "5"
+        },
+        "KeySchema": [
+          {
+            "AttributeName": "ChkPointId",
+            "KeyType": "HASH"
+          }
+        ],
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "ChkPointId",
+            "AttributeType": "S"
+          }
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+  }
+}

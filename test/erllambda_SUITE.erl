@@ -67,7 +67,7 @@ end_per_suite( Config ) -> Config.
     
 
 init_per_group( Transport, Config ) ->
-    erllambda_ct:setup_service( [{transport, Transport}, Config] ).
+    erllambda_ct:setup_service( [{transport, Transport} | Config] ).
      
 end_per_group( _Transport, Config ) ->
     erllambda_ct:cleanup_service( Config ).
@@ -127,7 +127,6 @@ test_unknown_handler( Config ) ->
     Transport = proplists:get_value( transport, Config ),
     Options = [{skip_module_check, true}, {transport, Transport}],
     EeeConfig = eee_ct:setup( erllambda_wtf, Options ),
-    Event = #{test => fubar_function},
     ?assertMatch(
        {error, {response, #{<<"errorType">> := <<"UnknownHandler">>}}},
        eee_ct:verify( EeeConfig ) ).
