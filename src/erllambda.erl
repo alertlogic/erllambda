@@ -19,6 +19,7 @@
 %% public - high-level migration orchestration endpoints
 -export([succeed/1, succeed/2, fail/1, fail/2, message/1, message/2]).
 -export([metric/1, metric/2, metric/3, metric/4]).
+-export([get_remaining_ms/1]).
 -export([region/0, config/0]).
 -export([ddb_init/1, ddb_init/3]).
 -export([checkpoint_init/5, checkpoint_todo/1, checkpoint_complete/2]).
@@ -150,6 +151,27 @@ metric(MName, Val, Type, Tags)
         NewTags
     ], "|"),
     message(Msg).
+
+
+
+%%%---------------------------------------------------------------------------
+-spec get_remaining_ms(map()) -> pos_integer() | undefined.
+%%%---------------------------------------------------------------------------
+%% @doc The time remaining in our invoke
+%%
+%% This function will return the time remaining in ms in this given Lambda function
+%% invocation.
+%% it will return `undefined` is EEE case.
+%%
+%% @see JS style Context Function
+%% http://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-context.html
+%%
+get_remaining_ms(#{<<"TIME_STARTED_MS">>   := StartTs,
+                   <<"TIME_REMAINING_MS">> := RemTime}) ->
+    CurrentTs = os:system_time(millisecond),
+    RemTime - (CurrentTs - StartTs);
+get_remaining_ms(_) ->
+    undefined.
 
 
 %%%---------------------------------------------------------------------------

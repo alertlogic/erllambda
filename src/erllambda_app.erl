@@ -67,8 +67,11 @@ cowboy_start( unix, Dispatch ) ->
                   {active, false}, {packet, raw},
                   {reuseaddr, true}, {ifaddr, {local, File}}],
     {ok, Socket} = gen_tcp:listen( 0, TcpOptions ),
-    Options = [{num_acceptors,1},{socket, Socket}],
-    cowboy:start_clear( unix, Options, #{env => #{dispatch => Dispatch}} ).
+    Options = [{num_acceptors,1},
+               {socket, Socket}],
+    {ok, IdleTimeout} = application:get_env( erllambda, idle_timeout),
+    cowboy:start_clear( unix, Options, #{env => #{dispatch => Dispatch},
+                                         idle_timeout => IdleTimeout} ).
 
 to_atom( V ) when is_atom(V) -> V;
 to_atom( V ) when is_list(V) -> list_to_atom( V );

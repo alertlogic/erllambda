@@ -2,6 +2,7 @@
 "use strict";
 var AWS = require('aws-sdk');
 var config = new AWS.Config();
+var date = new Date();
 var erlang = require('./erlang.js');
 var handler = require('etc/handler.json');
 
@@ -16,6 +17,9 @@ exports.handler = function(event, context) {
 
     /* connect and/or start the erlang vm asap, since it takes a bit. */
     const creds = config.credentials;
+    /* pass allowed timings to erlang side */
+    context.TIME_STARTED_MS = date.getTime();
+    context.TIME_REMAINING_MS = context.getRemainingTimeInMillis();
     context.AWS_ACCESS_KEY_ID = creds.accessKeyId;
     context.AWS_SECRET_ACCESS_KEY = creds.secretAccessKey;
     context.AWS_SECURITY_TOKEN = creds.sessionToken;
