@@ -81,6 +81,7 @@ function start(appmod, script, env, callback) {
     const taskdir = '/var/task';
     var releasedir = null;
     var rundir = null;
+    var libdir = null;
 
     /* create the temp directory and move copies of the config files into it
        so they are writable by the erlang node script. */
@@ -95,7 +96,14 @@ function start(appmod, script, env, callback) {
                     });
                 },
                 function(callback) {
-                    const glob = require('glob');
+                    glob(taskdir +  '/erts-*/lib', function(err, matches) {
+                        if (!err) {
+                            libdir = matches[0];
+                        }
+                        callback(err);
+                    });
+                },
+                function(callback) {
                     glob( 'releases/*.*.*', function(err, matches) {
                         if(!err) { releasedir = matches[0]; }
                         callback(err);
@@ -120,7 +128,7 @@ function start(appmod, script, env, callback) {
         function(callback) {
             /* set some additional environment variable needed to drive rebar
                release scripts. */
-            env.NATIVELIB_DIR = taskdir + '/erts-*/lib';
+            env.NATIVELIB_DIR = libdir;
             env.VAR_DIR = rundir;
             env.RUN_DIR = rundir;
             env.PROGNAME = appmod;
