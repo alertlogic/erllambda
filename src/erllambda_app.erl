@@ -28,7 +28,10 @@ start(_StartType, _StartArgs) ->
     lists:foreach( fun( Protocol ) ->
                            {ok, _} = cowboy_start( Protocol, Dispatch )
                    end, protocols() ),
+    error_logger:tty(false),
+    error_logger:add_report_handler(erllambda_error_handler),
     erllambda_sup:start_link().
+
 
 
 %%--------------------------------------------------------------------

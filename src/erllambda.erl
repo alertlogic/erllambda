@@ -286,9 +286,6 @@ invoke( Handler, Event, Context ) ->
             Response = jiffy:encode( #{errorType => 'HandlerFailure',
                                        errorMessage => Message} ),
             {error, {500, Response}}
-    after
-        message_send( "EOF: flush stdout" ),
-        application:set_env( erllambda, handler, undefined )
     end.
 
 invoke_credentials( #{<<"AWS_SECURITY_TOKEN">> := Token} = Context )
@@ -343,7 +340,6 @@ format( Message ) ->
 
 format( Format, Values ) ->
     iolist_to_binary( io_lib:format( Format, Values ) ).
-    
 
 complete( #{success := _} = Response ) ->
     complete( result, Response );
@@ -356,7 +352,7 @@ complete( Type, Response ) ->
 
 
 message_send( Message ) ->
-    io:fwrite( "~s\n", [Message] ).
+    error_logger:info_msg( "~s", [Message] ).
 
 %%====================================================================
 %% Test Functions

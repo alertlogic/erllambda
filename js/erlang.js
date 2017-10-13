@@ -66,7 +66,8 @@ function alive(appmod, deadline, callback) {
 
 function output( data ) {
     const eof = 'EOF: ';
-    data.toString().split('\n').forEach( function(line) {
+    const messages = data.toString().split('\t\n');
+    messages.forEach( function(line) {
         if( line !== '' ) {
             if( flushFuture && line.lastIndexOf(eof, 0) === 0 ) {
                 flushFuture.deliver( null, "complete" );

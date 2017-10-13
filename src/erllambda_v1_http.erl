@@ -34,17 +34,20 @@
 init( Request, [] ) ->
     RawMethod = cowboy_req:method( Request ),
     Method = method( RawMethod ),
+    Finalizer = make_handler_finalizer(Method),
     <<"/eee/v1/", Module/binary>> = Path = cowboy_req:path( Request ),
     QueryString = cowboy_req:qs( Request ),
     NewRequest =
         try request( Method, Module, Request ) of
             {ok, Status, MethodRequest} ->
-                cowboy_req:reply( Status, MethodRequest ),
-                access_log( RawMethod, Path, QueryString, Status );
+                NewReq0 = cowboy_req:reply( Status, MethodRequest ),
+                access_log( RawMethod, Path, QueryString, Status ),
+                NewReq0;
             {ok, Status, Headers, Body, MethodRequest} ->
-                cowboy_req:reply( Status, Headers, Body, MethodRequest ),
+                NewReq0 = cowboy_req:reply( Status, Headers, Body, MethodRequest ),
                 access_log( RawMethod, Path, QueryString, Status,
-                            byte_size(Body) )
+                            byte_size(Body) ),
+                NewReq0
         catch
             Type:Reason ->
                 Trace = erlang:get_stacktrace(),
@@ -54,8 +57,8 @@ init( Request, [] ) ->
                                                   reason => Reason}} ),
                 cowboy_req:reply( 200, json_headers(), Body, Request )  
         end,
+    finalize_handler(Finalizer),
     {ok, NewRequest, undefined}.
-
 
 %%%--------------------------------------------------------------------
 -spec terminate( Reason :: any(), Request :: cowboy_req:req(),
@@ -72,13 +75,36 @@ init( Request, [] ) ->
 %% certainty, then this callback should crash, which will terminate the
 %% process.
 %%
-terminate( _Reason, _Request, [] ) -> ok.
+terminate( _Reason, _Request, undefined ) -> ok.
 
 
 
 %%===========================================================================
 %% Internal functions
 %%===========================================================================
+make_handler_finalizer(get) ->
+    undefined;
+make_handler_finalizer(post) ->
+    HandlerProcess = self(),
+    spawn(
+        fun() ->
+            MonitorRef = monitor(process, HandlerProcess),
+            receive
+                {'DOWN', MonitorRef, process, HandlerProcess, _Reason} ->
+                    ok;
+                {finalize_erllambda, HandlerProcess} ->
+                    ok
+            end,
+            application:set_env(erllambda, handler, undefined),
+            erllambda:message("EOF: flush stdout")
+        end
+    ).
+
+finalize_handler(undefined) ->
+    ok;
+finalize_handler(FinalizerPid) ->
+    FinalizerPid ! {finalize_erllambda, self()}.
+
 method( <<"GET">> ) -> get;
 method( <<"POST">> ) -> post.
 
@@ -88,10 +114,11 @@ access_log( Method, Path, QueryString, Status ) ->
 
 access_log( Method, Path, QueryString, Status, Size ) ->
     {{Year, Month, Day}, {Hour, Min, Sec}} = calendar:universal_time(),
-    io:format( "127.0.0.1 - - [~2..0b/~s/~4..0b:~2..0b:~2..0b:~2..0b -0000] "
-               "\"~s ~s?~s HTTP/1.1\" ~b ~b~n",
-               [Day, month(Month), Year, Hour, Min, Sec,
-                Method, Path, QueryString, Status, Size] ).
+    erllambda:message(
+        "127.0.0.1 - - [~2..0b/~s/~4..0b:~2..0b:~2..0b:~2..0b -0000] "
+        "\"~s ~s?~s HTTP/1.1\" ~b ~b~n",
+        [Day, month(Month), Year, Hour, Min, Sec,
+            Method, Path, QueryString, Status, Size] ).
 
 month(1) -> 'Jan';
 month(2) -> 'Feb';
@@ -186,5 +213,3 @@ error( Type, Format, Values ) ->
         ++ Format ++ "\"}",
     NewValues = [Type | Values],
     iolist_to_binary( io_lib:format( NewFormat, NewValues ) ).
-
-
