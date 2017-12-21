@@ -13,11 +13,17 @@ function APIError(json) {
         this.name = json.errorType;
         this.message = json.errorMessage;
     } else {
-        this.name = "InvalidResponse"
+        this.name = "InvalidResponse";
         this.message = "request failure, with unexpected response";
     }
 }
 APIError.prototype = new Error();
+
+function ProcessError(code) {
+    this.name = "ProcessError";
+    this.message = `processed exited abnormally with status ${code}`;
+}
+ProcessError.prototype = new Error();
 
 function ping(appmod, callback) {
     const options = {
@@ -133,6 +139,7 @@ function start(appmod, script, env, callback) {
             env.VAR_DIR = rundir;
             env.RUN_DIR = rundir;
             env.PROGNAME = appmod;
+            env.ERL_CRASH_DUMP = "/dev/null";
             /* no matter what we just issue a stop without looking, to be
                safe */
             console.log( 'executing: "%s" with env: %s', script,
@@ -142,6 +149,9 @@ function start(appmod, script, env, callback) {
             child.stderr.on('data', output );
             child.on('close', (code) => {
                 console.log( '%s executed with %d', script, code );
+                if (code > 0) {
+                    callback(new ProcessError(code));
+                }
             });
 
             const deadline = Date.now() + 10000;
