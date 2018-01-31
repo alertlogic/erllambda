@@ -113,18 +113,18 @@ message( Format, Values ) ->
 %%
 %% This function will send log message from lambda using following format
 %% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|#tag1:value,tag2
-%% where metric_type :: "count" | "gauge"
+%% where metric_type :: "count" | "gauge" | "histogram"
 %%
 metric(MName) ->
     metric(MName, 1).
-metric(MName, Val) ->
+metric(MName, Val) when is_integer(Val) ->
     metric(MName, Val, "count").
 metric(MName, Val, Type) ->
     metric(MName, Val, Type, []).
 metric(MName, Val, Type, Tags)
         when is_list(MName)
-        andalso (Type == "count" orelse Type == "gauge")
-        andalso is_integer(Val) ->
+        andalso (Type == "count" orelse Type == "gauge" orelse Type == "histogram")
+        andalso is_number(Val) ->
     NewTags = "#" ++
         string:join(
             lists:map(
@@ -314,6 +314,7 @@ to_list( V ) when is_list(V) -> V;
 to_list( V ) when is_binary(V) -> binary_to_list(V);
 to_list( V ) when is_atom(V) -> atom_to_list(V);
 to_list( V ) when is_integer(V) -> integer_to_list(V);
+to_list( V ) when is_float(V) -> float_to_list(V);
 to_list( V ) -> V.
     
 expiration( V ) when is_integer(V) -> V;
