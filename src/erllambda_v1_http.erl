@@ -137,10 +137,13 @@ month(12) -> 'Dec'.
 request( get, BinModule, Request ) ->
     try binary_to_existing_atom( BinModule, latin1 ) of
         Module ->
-            case code:is_loaded( Module ) of
-                {file, _Filename} ->
+            case code:ensure_loaded( Module ) of
+                {module, Module} ->
                     {ok, 200, Request};
-                false -> unknown_handler( BinModule, Request )
+                {error, _} ->
+                % {error, embedded} has a whiff of potential to bite us later.
+                % TODO Investigate {error, embedded} implications from code:ensure_loaded/1
+                    unknown_handler( BinModule, Request )
             end
     catch
         error:badarg -> unknown_handler( BinModule, Request )
