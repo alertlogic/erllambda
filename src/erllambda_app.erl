@@ -43,6 +43,11 @@ stop(_State) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+socket_file() ->
+    {ok, File} = application:get_env( erllambda, socket_file ),
+    os:getenv( "EEE_SOCKET_FILE", File ).
+
 protocols() ->
     {ok, Protocols} = application:get_env( erllambda, listen_protocols ),
     [to_atom(P)
@@ -57,7 +62,8 @@ cowboy_start( tcp, Dispatch ) ->
 cowboy_start( unix, Dispatch ) ->
     %% socket file configured needs to be cleared out if we are to
     %% start and the directory needs to exist
-    {ok, File} = application:get_env( erllambda, socket_file ),
+    File = socket_file(),
+    erlang:display(File),
     _ = file:delete( File ),
     ok = filelib:ensure_dir( File ),
     %% the following sequence is neccessary because cowboy does not
