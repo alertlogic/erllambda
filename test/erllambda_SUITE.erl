@@ -57,7 +57,8 @@ tests() ->
      test_unknown_handler,
      test_invalid_request,
      test_invalid_request_no_event,
-     test_invalid_request_no_context
+     test_invalid_request_no_context,
+     test_socket_file
     ].
 
 init_per_suite( Config ) ->
@@ -148,6 +149,26 @@ test_invalid_request_no_context( Config ) ->
     ?assertMatch(
        {error, {response, #{<<"errorType">> := <<"InvalidRequest">>}}},
        invalid_request( Body, proplists:get_value( eee_ct, Config ) ) ).
+
+test_socket_file( Config ) ->
+    true = os:unsetenv( "EEE_SOCKET_FILE" ),
+    ?assertMatch(
+        "/tmp/eeecomm.sock",
+        erllambda_app:socket_file() ),
+
+    true = os:putenv( "EEE_SOCKET_FILE", "/var/run/eee/eeecomm1.sock" ),
+    ?assertMatch(
+        "/var/run/eee/eeecomm1.sock",
+        erllambda_app:socket_file() ),
+    true = os:unsetenv( "EEE_SOCKET_FILE" ),
+
+    true = os:putenv( "EEE_SOCKET_FILE", "/var/run/eee/eeecomm2.sock" ),
+    ?assertMatch(
+        "/var/run/eee/eeecomm2.sock",
+        erllambda_app:socket_file() ),
+    true = os:unsetenv( "EEE_SOCKET_FILE" ).
+
+    
 
 %%******************************************************************************
 %% Internal Functions
