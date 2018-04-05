@@ -8,7 +8,8 @@ if [ -z $SCRIPT ]; then
 fi;
 SCRIPT_DIR="$(cd `dirname "$SCRIPT"` && pwd -P)"
 RELEASE_ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
-REL_DIR=(${RELEASE_ROOT_DIR}/releases/[0-9]*)
+REL_DIRS=(${RELEASE_ROOT_DIR}/releases/[0-9]*)
+REL_DIR=${REL_DIRS[-1]}
 ERTS_DIR=(${RELEASE_ROOT_DIR}/erts-*)
 ERTS_LIB_DIR="${ERTS_DIR}/../lib"
 export REL_NAME="$(basename $SCRIPT)"
