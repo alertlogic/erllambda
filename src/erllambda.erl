@@ -44,7 +44,9 @@
 %% Callback Interface Definition
 %%============================================================================
 %%%---------------------------------------------------------------------------
--callback handle( Event :: map(), Context :: map() ) -> ok | none().
+-callback handle( Event :: map(), Context :: map() ) ->
+    ok | {ok, list() | map()} | {error, list()}.
+
 %%%---------------------------------------------------------------------------
 %% @doc Handle lambda invocation
 %%
