@@ -288,6 +288,8 @@ invoke( Handler, Event, Context ) ->
             Response = jiffy:encode( #{errorType => 'HandlerFailure',
                                        errorMessage => Message} ),
             {error, {500, Response}}
+    after
+        lhttpc_restart()
     end.
 
 invoke_credentials( #{<<"AWS_SECURITY_TOKEN">> := Token} = Context )
@@ -332,6 +334,20 @@ invoke_exec( Handler, Event, Context ) ->
             %% if handler returns anything else, then it did not call
             %% fail/succeed, or return ok, so it is assumed to fail
             fail( "did not invoke succeed/1,2 or fail/1,2" )
+    end.
+
+% in Lambda environment ErlVM outlives single invoke
+% need to reset lhttpC pool state since all sockets are dead next time.
+% atm it's enough to reset default pool. (used by erllambda, erlcloud, alstore)
+lhttpc_restart() ->
+    case application:get_env(erllambda, reset_lhttpc_pools) of
+        {ok, Pools} when is_list(Pools) ->
+            lists:foreach(fun(P) ->
+                    message("reseting ~p lhttpc pool", [P]),
+                    lhttpc:delete_pool(P), lhttpc:add_pool(P)
+                end,
+                Pools);
+        _ -> ok
     end.
 
 
