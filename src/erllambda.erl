@@ -17,7 +17,8 @@
 
 
 %% public - high-level migration orchestration endpoints
--export([succeed/1, succeed/2, fail/1, fail/2, message/1, message/2]).
+-export([succeed/1, succeed/2, fail/1, fail/2]).
+-export([message/1, message/2, message_ctx/2, message_ctx/3]).
 -export([metric/1, metric/2, metric/3, metric/4]).
 -export([get_remaining_ms/1]).
 -export([region/0, config/0]).
@@ -39,6 +40,7 @@
 %% @see src/erllambda.hrl
 %%============================================================================
 
+-define(AL_CTX_SD_ID, "context@36312").
 
 %%============================================================================
 %% Callback Interface Definition
@@ -91,7 +93,7 @@ fail( Format, Values ) ->
 %% invocation.
 %%
 message( Message ) ->
-    NewMessage = format( Message ),
+    NewMessage = format( Message, [] ),
     message_send( NewMessage ).
 
 
@@ -106,6 +108,36 @@ message( Message ) ->
 message( Format, Values ) ->
     Message = format( Format, Values ),
     message_send( Message ).
+
+
+%%%---------------------------------------------------------------------------
+-spec message_ctx( ReqId :: binary() | map(), Message :: iolist() ) -> ok.
+%%%---------------------------------------------------------------------------
+%% @doc Send an informational message to be logged
+%%
+%% This function will ensure the message is output in the log for the lambda
+%% invocation.
+%%
+message_ctx( ReqId, Message ) ->
+    message_ctx(ReqId, Message, []).
+
+
+%%%---------------------------------------------------------------------------
+-spec message_ctx( ReqId :: binary() | map(), Format :: string(),
+        Values :: [any()] ) -> ok.
+%%%---------------------------------------------------------------------------
+%% @doc Send an informational message to be logged
+%%
+%% This function will format the message using <code>io_lib:format/2</code>
+%% and then ensure it is output in the log for the lambda invocation.
+%%
+message_ctx( #{<<"erllambda_request_id">> := ReqId}, Format, Values ) ->
+    message_ctx(ReqId, Format, Values);
+message_ctx( ReqId, Format, Values ) when is_binary(ReqId) ->
+    Message = format_reqid( ReqId, Format, Values ),
+    message_send( Message );
+message_ctx( _ReqId, Format, Values) ->
+    message_ctx(<<"illegal_request_id">>, Format, Values).
 
 
 -spec metric(MetricName :: string(), MetricValue :: integer(),
@@ -354,8 +386,9 @@ lhttpc_restart() ->
 %%============================================================================
 %% Internal Functions
 %%============================================================================
-format( Message ) ->
-    format( Message, [] ).
+format_reqid( ReqId, Format, Values ) ->
+    format( "[" ?AL_CTX_SD_ID " aid=\"~s\"] " ++ Format,
+            [ReqId  | Values] ).
 
 format( Format, Values ) ->
     iolist_to_binary( io_lib:format( Format, Values ) ).
@@ -372,6 +405,7 @@ complete( Type, Response ) ->
 
 message_send( Message ) ->
     error_logger:info_msg( "~s", [Message] ).
+
 
 %%====================================================================
 %% Test Functions
