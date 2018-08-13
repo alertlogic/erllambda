@@ -97,7 +97,7 @@ function start(appmod, script, env, callback) {
             async.parallel( [
                 function(callback) {
                     const tmp = require('tmp');
-                    tmp.dir(function(err, path) {
+                    tmp.dir({unsafeCleanup: true}, function(err, path) {
                         if(!err) { rundir = path; }
                         callback(err);
                     });
