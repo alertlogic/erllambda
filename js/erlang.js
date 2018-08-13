@@ -2,6 +2,7 @@
 "use strict";
 const async = require('async');
 const spawn = require('child_process').spawn;
+const spawnSync = require('child_process').spawnSync;
 const http = require('http');
 const fs = require('fs');
 const glob = require('glob');
@@ -87,7 +88,7 @@ function output( data ) {
 function start(appmod, script, env, callback) {
     const taskdir = '/var/task';
     var releasedir = null;
-    var rundir = null;
+    var rundir = '/tmp/erllambda_rundir';
     var libdir = null;
 
     /* create the temp directory and move copies of the config files into it
@@ -96,9 +97,21 @@ function start(appmod, script, env, callback) {
         function(callback) {
             async.parallel( [
                 function(callback) {
-                    const tmp = require('tmp');
-                    tmp.dir({unsafeCleanup: true}, function(err, path) {
-                        if(!err) { rundir = path; }
+                    console.log( 'creating dir: ' + rundir );
+                    fs.mkdir( rundir, function(err) {
+                        if(err) {
+                            if (err.code !== 'EEXIST') {
+                                console.log( 'create dir failed: ' + err );
+                            } else {
+                                /* If dir exists its because erlang crashed
+                                   and we are restarting the erlang vm;
+                                   cleanup and recreate temp folder */
+                                console.log( 'recreating rundir: ' + rundir);
+                                spawnSync('rm', ['-rf', rundir]);
+                                fs.mkdirSync(rundir);
+                                err = null;
+                            }
+                        }
                         callback(err);
                     });
                 },
@@ -125,7 +138,7 @@ function start(appmod, script, env, callback) {
                     const dirname = rundir + '/' + name;
                     console.log( 'creating dir: ' + dirname );
                     fs.mkdir( dirname, function(err) {
-                        if(err && err.code !== 'EEXISTS') {
+                        if(err && err.code !== 'EEXIST') {
                             console.log( 'create dir failed: ' + err );
                         }
                         callback(err);
