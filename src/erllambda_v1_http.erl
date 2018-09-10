@@ -32,20 +32,22 @@
 %% This function is called for each request, and blocks until complete.
 %%
 init( Request, [] ) ->
+    RequestId = cowboy_req:header(<<"x-request-id">>, Request,
+            al_uuid:gen_v4()),
     RawMethod = cowboy_req:method( Request ),
     Method = method( RawMethod ),
-    Finalizer = make_handler_finalizer(Method),
+    Finalizer = make_handler_finalizer(RequestId, Method),
     <<"/eee/v1/", Module/binary>> = Path = cowboy_req:path( Request ),
     QueryString = cowboy_req:qs( Request ),
     NewRequest =
-        try request( Method, Module, Request ) of
+        try request( RequestId, Method, Module, Request ) of
             {ok, Status, MethodRequest} ->
                 NewReq0 = cowboy_req:reply( Status, MethodRequest ),
-                access_log( RawMethod, Path, QueryString, Status ),
+                access_log( RequestId, RawMethod, Path, QueryString, Status ),
                 NewReq0;
             {ok, Status, Headers, Body, MethodRequest} ->
                 NewReq0 = cowboy_req:reply( Status, Headers, Body, MethodRequest ),
-                access_log( RawMethod, Path, QueryString, Status,
+                access_log( RequestId, RawMethod, Path, QueryString, Status,
                             byte_size(Body) ),
                 NewReq0
         catch
@@ -82,9 +84,9 @@ terminate( _Reason, _Request, undefined ) -> ok.
 %%===========================================================================
 %% Internal functions
 %%===========================================================================
-make_handler_finalizer(get) ->
+make_handler_finalizer(_RequestId, get) ->
     undefined;
-make_handler_finalizer(post) ->
+make_handler_finalizer(RequestId, post) ->
     HandlerProcess = self(),
     spawn(
         fun() ->
@@ -96,7 +98,7 @@ make_handler_finalizer(post) ->
                     ok
             end,
             application:set_env(erllambda, handler, undefined),
-            erllambda:message("EOF: flush stdout")
+            erllambda:message_ctx(RequestId, "EOF: flush stdout")
         end
     ).
 
@@ -109,12 +111,12 @@ method( <<"GET">> ) -> get;
 method( <<"POST">> ) -> post.
 
 
-access_log( Method, Path, QueryString, Status ) ->
-    access_log( Method, Path, QueryString, Status, 0 ).
+access_log( RequestId, Method, Path, QueryString, Status ) ->
+    access_log( RequestId, Method, Path, QueryString, Status, 0 ).
 
-access_log( Method, Path, QueryString, Status, Size ) ->
+access_log( RequestId, Method, Path, QueryString, Status, Size ) ->
     {{Year, Month, Day}, {Hour, Min, Sec}} = calendar:universal_time(),
-    erllambda:message(
+    erllambda:message_ctx(RequestId,
         "127.0.0.1 - - [~2..0b/~s/~4..0b:~2..0b:~2..0b:~2..0b -0000] "
         "\"~s ~s?~s HTTP/1.1\" ~b ~b~n",
         [Day, month(Month), Year, Hour, Min, Sec,
@@ -134,7 +136,7 @@ month(11) -> 'Nov';
 month(12) -> 'Dec'.
     
     
-request( get, BinModule, Request ) ->
+request( _RequestId, get, BinModule, Request ) ->
     try binary_to_existing_atom( BinModule, latin1 ) of
         Module ->
             case code:ensure_loaded( Module ) of
@@ -148,21 +150,21 @@ request( get, BinModule, Request ) ->
     catch
         error:badarg -> unknown_handler( BinModule, Request )
     end;
-request( post, BinModule, Request ) ->
+request( RequestId, post, BinModule, Request ) ->
     try binary_to_existing_atom( BinModule, latin1 ) of
         Module ->
             case cowboy_req:has_body( Request ) of
-                true -> post_body( Module, Request );
+                true -> post_body( RequestId, Module, Request );
                 false -> invalid_request( "Missing request body", Request )
             end
     catch
         error:badarg -> unknown_handler( BinModule, Request )
     end.
 
-post_body( Module, Request ) ->
+post_body( RequestId, Module, Request ) ->
     case post_body_read( Request, <<>> ) of
         {ok, Body, NewRequest} ->
-            post_process( Module, Body, NewRequest );
+            post_process( RequestId, Module, Body, NewRequest );
         Otherwise -> Otherwise
     end.
 
@@ -177,10 +179,11 @@ post_body_read( Request, Body ) ->
         Otherwise -> Otherwise
     end.
 
-post_process( Module, Body, Request ) ->
+post_process( RequestId, Module, Body, Request ) ->
     try jiffy:decode( Body, [return_maps] ) of
         #{<<"event">> := Event, <<"context">> := Context} ->
-            Response = erllambda:invoke( Module, Event, Context ),
+            Context0 = Context#{<<"erllambda_request_id">> => RequestId},
+            Response = erllambda:invoke( Module, Event, Context0 ),
             post_response( Response, Request );
         #{<<"context">> := _} ->
             invalid_request( "Event object missing from body", Request );
