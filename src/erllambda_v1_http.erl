@@ -98,7 +98,7 @@ make_handler_finalizer(RequestId, post) ->
                     ok
             end,
             application:set_env(erllambda, handler, undefined),
-            erllambda:message_ctx(RequestId, "EOF: flush stdout")
+            erllambda:message("EOF: flush stdout")
         end
     ).
 
