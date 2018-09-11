@@ -41,7 +41,7 @@ function ping(appmod, callback) {
                 resp_body += chunk;
             });
             response.on('end', function() {
-                const json = body === '' ? null : JSON.parse( resp_body );
+                const json = resp_body === '' ? null : JSON.parse( resp_body );
                 callback( new APIError(json) );
             });
         }
