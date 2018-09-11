@@ -11,7 +11,8 @@
     lhttpc,
     erlcloud,
     iwsutil,
-    jiffy
+    jiffy,
+    al_uuid
    ]},
   {env,
    [
