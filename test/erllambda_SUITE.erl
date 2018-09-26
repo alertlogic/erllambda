@@ -150,7 +150,7 @@ test_invalid_request_no_context( Config ) ->
        {error, {response, #{<<"errorType">> := <<"InvalidRequest">>}}},
        invalid_request( Body, proplists:get_value( eee_ct, Config ) ) ).
 
-test_socket_file( Config ) ->
+test_socket_file( _Config ) ->
     true = os:unsetenv( "EEE_SOCKET_FILE" ),
     ?assertMatch(
         "/tmp/eeecomm.sock",
