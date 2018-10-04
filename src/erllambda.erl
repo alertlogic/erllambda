@@ -18,6 +18,7 @@
 
 %% public - high-level migration orchestration endpoints
 -export([succeed/1, succeed/2, fail/1, fail/2]).
+-export([retry/2, retry/3]).
 -export([message/1, message/2, message_ctx/2, message_ctx/3]).
 -export([metric/1, metric/2, metric/3, metric/4]).
 -export([get_remaining_ms/1]).
@@ -69,6 +70,20 @@ succeed( Value ) when is_binary(Value); is_list(Value) ->
 
 succeed( Format, Values ) ->
     complete( #{success => format( Format, Values )} ).
+
+
+%%%---------------------------------------------------------------------------
+-spec retry(Message :: iolist(), Checkpoint :: iolist() ) -> none().
+%%%---------------------------------------------------------------------------
+%% @doc Complete processing with success
+%%
+retry( Message, Checkpoint ) ->
+    retry( "~s", [Message], Checkpoint ).
+
+retry( Format, Values, Checkpoint ) ->
+    complete( #{errorType => 'HandlerCheckpoint',
+                errorMessage => format( Format, Values ),
+                checkpoint => Checkpoint} ).
 
 
 %%%---------------------------------------------------------------------------
@@ -297,6 +312,7 @@ checkpoint_complete(Complete, Checkpoint) ->
 %%============================================================================
 %% Private API Function
 %%============================================================================
+
 %%%---------------------------------------------------------------------------
 -spec invoke( Handler :: module(), Event :: binary(),
               Context :: binary() ) -> ok.
@@ -311,7 +327,8 @@ invoke( Handler, Event, Context ) ->
     catch
         throw:{?MODULE, result, Json} -> {ok, Json};
         throw:{?MODULE, failure, Json} -> {error, {500, Json}};
-        Type:Reason ->  
+        throw:{?MODULE, retry, Json} -> {error, {503, Json}};
+        Type:Reason ->
             Trace = erlang:get_stacktrace(),
             Message = iolist_to_binary(
                         io_lib:format( "terminated with exception {~w,~w}",
@@ -362,10 +379,16 @@ invoke_exec( Handler, Event, Context ) ->
         ok -> succeed( "completed successfully" );
         {ok, Result} -> succeed( Result );
         {error, Reason} -> fail( Reason );
+        % This last clause is a return only supported by eee for the moment;
+        % one could eventually tie this with erllambda_checkpoint (provided
+        % we have a stable way to identify if we are called from EEE or
+        % AWS lambda; maybe look for the absence of awsRequestId in Context
+        % meaning we're called from EEE)
+        {checkpoint, {Reason, Checkpoint}} -> retry(Reason, Checkpoint);
         _Anything ->
             %% if handler returns anything else, then it did not call
-            %% fail/succeed, or return ok, so it is assumed to fail
-            fail( "did not invoke succeed/1,2 or fail/1,2" )
+            %% fail/succeed/retry, or return ok, so it is assumed to fail
+            fail( "did not invoke succeed/1,2 or fail/1,2 or retry/2,3" )
     end.
 
 % in Lambda environment ErlVM outlives single invoke
@@ -395,6 +418,8 @@ format( Format, Values ) ->
 
 complete( #{success := _} = Response ) ->
     complete( result, Response );
+complete( #{checkpoint := _} = Response ) ->
+    complete( retry, Response );
 complete( #{errorType := _} = Response ) ->
     complete( failure, Response ).
 

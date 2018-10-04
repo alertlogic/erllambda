@@ -86,7 +86,7 @@ terminate( _Reason, _Request, undefined ) -> ok.
 %%===========================================================================
 make_handler_finalizer(_RequestId, get) ->
     undefined;
-make_handler_finalizer(RequestId, post) ->
+make_handler_finalizer(_RequestId, post) ->
     HandlerProcess = self(),
     spawn(
         fun() ->
