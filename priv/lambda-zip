@@ -4,5 +4,5 @@ srcdir=${2:-/nowhere}
 
 rm -rf ${zippath}
 (cd ${srcdir} &&
-     zip -q -r ${zippath} * \
+     zip --symlinks -q -r ${zippath} * \
          -x \*.a \*.c \*.h \*.o \*.erl \*.hrl \*.xrl \*.yrl \*.asn1)

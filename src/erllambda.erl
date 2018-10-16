@@ -23,13 +23,11 @@
 -export([metric/1, metric/2, metric/3, metric/4]).
 -export([get_remaining_ms/1]).
 -export([region/0, config/0]).
--export([ddb_init/1, ddb_init/3]).
--export([checkpoint_init/5, checkpoint_todo/1, checkpoint_complete/2]).
 
 %% private - handler invocation entry point, used by http api
 -export([invoke/3]).
 
--include("erllambda.hrl").
+-include_lib("erlcloud/include/erlcloud_aws.hrl").
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -146,7 +144,7 @@ message_ctx( ReqId, Message ) ->
 %% This function will format the message using <code>io_lib:format/2</code>
 %% and then ensure it is output in the log for the lambda invocation.
 %%
-message_ctx( #{<<"erllambda_request_id">> := ReqId}, Format, Values ) ->
+message_ctx( #{<<"x-amz-aws-request-Id">> := ReqId}, Format, Values ) ->
     message_ctx(ReqId, Format, Values);
 message_ctx( ReqId, Format, Values ) when is_binary(ReqId) ->
     Message = format_reqid( ReqId, Format, Values ),
@@ -252,63 +250,6 @@ config() ->
     iwsutil:config().
 
 
-%%%---------------------------------------------------------------------------
--spec ddb_init( Tables :: [binary()], Region :: binary(),
-                Config :: #aws_config{} ) -> #aws_config{} | none().
-%%%---------------------------------------------------------------------------
-%% @doc Generate config and validate access to a list of tables
-%%
-%% This function will generate a new configuration to access the AWS
-%% DynamoDB service in the specified region, based on the a config
-%% containing valid credentials. In addition, this function will validate
-%% access to a list of tables, and if any cannot be described, will call
-%% {@link fail/2} under the assumption that the lambda function cannot
-%% continue without access to these tables.
-%%
-ddb_init( Tables, Config, Region ) ->
-    DDBConfig = erlcloud_aws:service_config( <<"dynamodb">>, Region, Config ),
-    case lists:foldl( fun ddb_init_table/2, {ok, DDBConfig}, Tables ) of
-        {ok, _} -> DDBConfig;
-        {error, {table_not_available, Table, Reason}} ->
-            fail( "ddb_init failed for ~s, because ~p", [Table, Reason] )
-    end.
-
-ddb_init_table( Table, {ok, DDBConfig} = Acc ) ->
-    case erlcloud_ddb2:describe_table( Table, [], DDBConfig ) of
-        {ok, _Description} -> Acc;
-        Otherwise -> {error, {table_not_available, Table, Otherwise}}
-    end;
-ddb_init_table( _Table, Error ) -> Error.
-
-ddb_init( Tables ) ->
-    ddb_init( Tables, config(), region() ).
-
-
-%%%---------------------------------------------------------------------------
--spec checkpoint_init( Table :: binary(), Function :: binary(),
-                       RequestId :: binary(), Records :: [term()],
-                       Config :: #aws_config{} ) ->
-                             erllambda_checkpoint:checkpoint() | none().
-%%%---------------------------------------------------------------------------
-%%% @doc {@link erllambda_checkpoint:init/5}
-checkpoint_init(Table, Function, RequestId, Records, Config) ->
-    erllambda_checkpoint:init(Table, Function, RequestId, Records, Config).
-
-%%%---------------------------------------------------------------------------
--spec checkpoint_todo( Checkpoint :: erllambda_checkpoint:checkpoint() ) ->
-    erllambd_checkpoint:todo_list().
-%%%---------------------------------------------------------------------------
-%%% @doc {@link erllambda_checkpoint:todo/1}
-checkpoint_todo(Checkpoint) -> erllambda_checkpoint:todo(Checkpoint).
-
-%%%---------------------------------------------------------------------------
--spec checkpoint_complete( Complete :: record_id_list(),
-                           Checkpoint :: erllambda_checkpoint:checkpoint() ) -> ok | none().
-%%%---------------------------------------------------------------------------
-%%% @doc {@link erllambda_checkpoint:complete/2}
-checkpoint_complete(Complete, Checkpoint) ->
-    erllambda_checkpoint:complete(Complete, Checkpoint).
-
 %%============================================================================
 %% Private API Function
 %%============================================================================
@@ -321,46 +262,42 @@ checkpoint_complete(Complete, Checkpoint) ->
 %%
 invoke( Handler, Event, Context ) ->
     application:set_env( erllambda, handler, Handler ),
-    invoke_credentials( Context ),
+    invoke_credentials( Context, application:get_env( iwsutils, config )),
     try 
         invoke_exec( Handler, Event, Context )
     catch
         throw:{?MODULE, result, Json} -> {ok, Json};
-        throw:{?MODULE, failure, Json} -> {error, {500, Json}};
-        throw:{?MODULE, retry, Json} -> {error, {503, Json}};
+        throw:{?MODULE, failure, Json} -> {handled, Json};
         Type:Reason ->
             Trace = erlang:get_stacktrace(),
             Message = iolist_to_binary(
-                        io_lib:format( "terminated with exception {~w,~w}",
+                        io_lib:format( "terminated with exception {~w, ~w}",
                                        [Type, Reason] ) ),
             message_send( format( "~s with trace ~n~p", [Message, Trace] ) ),
             Response = jiffy:encode( #{errorType => 'HandlerFailure',
                                        errorMessage => Message} ),
-            {error, {500, Response}}
-    after
-        lhttpc_restart()
+            {unhandled, Response}
     end.
 
-invoke_credentials( #{<<"AWS_SECURITY_TOKEN">> := Token} = Context )
-  when Token =/= null ->
-    case application:get_env( iwsutils, config ) of
-        {ok, #aws_config{security_token = Token}} -> ok;
-        _ -> invoke_update_credentials( Context )
-    end;
-invoke_credentials( #{<<"AWS_SECRET_ACCESS_KEY">> := Key} = Context  ) ->
-    case application:get_env( iwsutils, config ) of
-        {ok, #aws_config{secret_access_key = Key}} -> ok;
-        _ -> invoke_update_credentials( Context )
-    end.
+invoke_credentials( #{<<"AWS_SESSION_TOKEN">> := Token} = _Context ,
+                    {ok, #aws_config{security_token = Token}}) ->
+    ok;
+invoke_credentials( #{<<"AWS_SECRET_ACCESS_KEY">> := Key} = _Context ,
+                    {ok, #aws_config{secret_access_key = Key}}) ->
+    ok;
+invoke_credentials( Context, _ ) ->
+    invoke_update_credentials( Context ).
 
 invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
                              <<"AWS_SECRET_ACCESS_KEY">> := Key,
-                             <<"AWS_SECURITY_TOKEN">> := Token,
-                             <<"AWS_CREDENTIAL_EXPIRE_TIME">> := Expire} ) ->
+                             <<"AWS_SESSION_TOKEN">> := Token }) ->
+%%                             <<"x-amz-deadline-ns">> := Expire}) ->
+%%                             <<"AWS_CREDENTIAL_EXPIRE_TIME">> := Expire
+
     Config = #aws_config{ access_key_id = to_list(Id),
                           secret_access_key = to_list(Key),
                           security_token = to_list(Token),
-                          expiration = expiration(Expire) },
+                          expiration = undefined },
     application:set_env( iwsutil, config, Config ).
 
 to_list( V ) when is_list(V) -> V;
@@ -369,42 +306,17 @@ to_list( V ) when is_atom(V) -> atom_to_list(V);
 to_list( V ) when is_integer(V) -> integer_to_list(V);
 to_list( V ) when is_float(V) -> float_to_list(V);
 to_list( V ) -> V.
-    
-expiration( V ) when is_integer(V) -> V;
-expiration( null ) -> undefined;
-expiration( undefined ) -> undefined.
 
 invoke_exec( Handler, Event, Context ) ->
     case Handler:handle( Event, Context ) of
         ok -> succeed( "completed successfully" );
         {ok, Result} -> succeed( Result );
         {error, Reason} -> fail( Reason );
-        % This last clause is a return only supported by eee for the moment;
-        % one could eventually tie this with erllambda_checkpoint (provided
-        % we have a stable way to identify if we are called from EEE or
-        % AWS lambda; maybe look for the absence of awsRequestId in Context
-        % meaning we're called from EEE)
-        {checkpoint, {Reason, Checkpoint}} -> retry(Reason, Checkpoint);
         _Anything ->
             %% if handler returns anything else, then it did not call
             %% fail/succeed/retry, or return ok, so it is assumed to fail
             fail( "did not invoke succeed/1,2 or fail/1,2 or retry/2,3" )
     end.
-
-% in Lambda environment ErlVM outlives single invoke
-% need to reset lhttpC pool state since all sockets are dead next time.
-% atm it's enough to reset default pool. (used by erllambda, erlcloud, alstore)
-lhttpc_restart() ->
-    case application:get_env(erllambda, reset_lhttpc_pools) of
-        {ok, Pools} when is_list(Pools) ->
-            lists:foreach(fun(P) ->
-                    message("reseting ~p lhttpc pool", [P]),
-                    lhttpc:delete_pool(P), lhttpc:add_pool(P)
-                end,
-                Pools);
-        _ -> ok
-    end.
-
 
 %%============================================================================
 %% Internal Functions
@@ -418,8 +330,6 @@ format( Format, Values ) ->
 
 complete( #{success := _} = Response ) ->
     complete( result, Response );
-complete( #{checkpoint := _} = Response ) ->
-    complete( retry, Response );
 complete( #{errorType := _} = Response ) ->
     complete( failure, Response ).
 
