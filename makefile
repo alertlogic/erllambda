@@ -1,7 +1,7 @@
 APP := erllambda
 
 CFN_STACK_NAME = erllambda-env
-ERLANG_VERSION ?= r19_3_6_1
+ERLANG_VERSION ?= 20.3.8.9
 COMPS_NEEDED := erlang_$(ERLANG_VERSION),rebar3,setenv
 NATIVE_LIBS := true
 
