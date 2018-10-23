@@ -23,7 +23,9 @@
 start(_StartType, _StartArgs) ->
     error_logger:tty(false),
     error_logger:add_report_handler(erllambda_error_handler),
-    erllambda:message("Erllambda Starting with Env ~p", [os:getenv()]),
+    EnvWihtoutSecret = erllambda_poller:hide_secret(erllambda_poller:os_env2map()),
+    erllambda:message("Erllambda Starting at ~p with Env ~p",
+        [os:system_time(millisecond), EnvWihtoutSecret]),
 %%    erllambda:message("Cyphers ~p ", [[X || X <- ssl:cipher_suites()]]),
     erllambda_sup:start_link().
 

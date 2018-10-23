@@ -14,7 +14,10 @@
 -export([
     spec/0,
     start_link/0,
-    runtime_address/0
+    runtime_address/0,
+    handler_module/0,
+    os_env2map/0,
+    hide_secret/1
 ]).
 
 -export([handle/2]).
@@ -112,7 +115,9 @@ handle_info(poll, #state{handler = Handler} = State) ->
     %% SYNC to RUNTIME
     %% container freeze/thaw happens here
     {ok, ReqId, MHdrs, Body} = invoke_next(State),
+    %% container thaw happens here
     OSMap = os_env2map(),
+    erllambda:message("Next returns, in invoke ~p", [os:system_time(millisecond)]),
     case erllambda:invoke(Handler, Body, maps:merge(OSMap, MHdrs)) of
         {ok, Json} ->
             invoke_success(State, ReqId, Json),
@@ -123,7 +128,10 @@ handle_info(poll, #state{handler = Handler} = State) ->
         {unhandled, ErrJson} ->
             invoke_error(State, ReqId, ErrJson),
             {stop, {error, ErrJson} , State}
-    end.
+    end;
+handle_info(Info, State) ->
+    erllambda:message("Unknown info: ~p", [Info]),
+    {noreply, State}.
 
 %% @private
 terminate(_Reason, #state{timer_ref = undefined}) ->
@@ -148,7 +156,8 @@ invoke_next(#state{runtime_addr = Addr, aws_cfg = AwsCfg}) ->
     FullPath = binary_to_list(<<"http://", Addr/binary,
         "/", ?API_VERSION/binary,
         ?INVOKE_NEXT_PATH/binary>>),
-    erllambda:message("Invoke Next path ~p", [FullPath]),
+    erllambda:message("Invoke Next path ~p ~s", [os:system_time(millisecond), FullPath]),
+    %% infinity due to container Freeze/thaw behaviour
     case request(FullPath, get, [], "", infinity, AwsCfg) of
         {ok, {{200, _}, Hdrs, Body}} ->
             #{<<"x-amz-aws-request-id">> := AwsReqId} = MapHdrs = hdr2map(Hdrs),
@@ -163,9 +172,9 @@ invoke_success(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
     FullPath = binary_to_list(<<"http://", Addr/binary,
         "/", ?API_VERSION/binary,
         (?INVOKE_REPLAY_SUCCESS_PATH(AwsReqId))/binary>>),
-    erllambda:message("Invoke Success path ~p", [FullPath]),
-
-    case request(FullPath, post, [], jiffy:encode(Body), infinity, AwsCfg) of
+    erllambda:message("Invoke Success path ~p ~s", [os:system_time(millisecond), FullPath]),
+    %% infinity due to container Freeze/thaw behaviour
+    case request(FullPath, post, [], Body, infinity, AwsCfg) of
         {ok, {{202, _}, _Hdrs, _Body}} ->
             ok;
         {error, _} = Err ->
@@ -177,8 +186,10 @@ invoke_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
     FullPath = binary_to_list(<<"http://", Addr/binary,
         "/", ?API_VERSION/binary,
         (?INVOKE_REPLAY_ERROR_PATH(AwsReqId))/binary>>),
-    erllambda:message("Invoke Error path ~p", [FullPath]),
-    case request(FullPath, post, [], jiffy:encode(Body), infinity, AwsCfg) of
+    erllambda:message("Invoke Error path ~p ~s", [os:system_time(millisecond), FullPath]),
+    %% infinity due to container Freeze/thaw behaviour
+    %% TODO remove double encode
+    case request(FullPath, post, [], Body, infinity, AwsCfg) of
         {ok, {{202, _}, _Hdrs, _Body}} ->
             ok;
         {error, _} = Err ->
@@ -220,6 +231,12 @@ os_env2map() ->
         end,
         os:getenv()
     )).
+
+hide_secret(#{<<"AWS_SECRET_ACCESS_KEY">> := _} = Map) ->
+    maps:without([<<"AWS_SECRET_ACCESS_KEY">>], Map);
+hide_secret(Map) ->
+    Map.
+
 
 hdr2map(Hdrs) ->
     maps:from_list([{list_to_binary(K), list_to_binary(V)} || {K,V} <- Hdrs]).

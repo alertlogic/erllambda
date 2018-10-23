@@ -66,6 +66,7 @@ set -- "$ERTS_DIR/bin/erlexec" -noshell -noinput -Bd \
      -config "$CONFIG_PATH" \
      -args_file "$VMARGS_PATH"
 
+date '+%T.%6N'
 echo "Exec: $@" -- ${1+$ARGS}
 echo "Root: $ROOTDIR"
 cd $ROOTDIR

@@ -18,7 +18,6 @@
 
 %% public - high-level migration orchestration endpoints
 -export([succeed/1, succeed/2, fail/1, fail/2]).
--export([retry/2, retry/3]).
 -export([message/1, message/2, message_ctx/2, message_ctx/3]).
 -export([metric/1, metric/2, metric/3, metric/4]).
 -export([get_remaining_ms/1]).
@@ -26,6 +25,8 @@
 
 %% private - handler invocation entry point, used by http api
 -export([invoke/3]).
+
+-export([to_binary/1, to_list/1]).
 
 -include_lib("erlcloud/include/erlcloud_aws.hrl").
 
@@ -71,20 +72,6 @@ succeed( Format, Values ) ->
 
 
 %%%---------------------------------------------------------------------------
--spec retry(Message :: iolist(), Checkpoint :: iolist() ) -> none().
-%%%---------------------------------------------------------------------------
-%% @doc Complete processing with success
-%%
-retry( Message, Checkpoint ) ->
-    retry( "~s", [Message], Checkpoint ).
-
-retry( Format, Values, Checkpoint ) ->
-    complete( #{errorType => 'HandlerCheckpoint',
-                errorMessage => format( Format, Values ),
-                checkpoint => Checkpoint} ).
-
-
-%%%---------------------------------------------------------------------------
 -spec fail( Message :: iolist() ) -> none().
 %%%---------------------------------------------------------------------------
 %% @doc Complete a processing with failure
@@ -106,8 +93,7 @@ fail( Format, Values ) ->
 %% invocation.
 %%
 message( Message ) ->
-    NewMessage = format( Message, [] ),
-    message_send( NewMessage ).
+    message_send( Message ).
 
 
 %%%---------------------------------------------------------------------------
@@ -266,16 +252,16 @@ invoke( Handler, Event, Context ) ->
     try 
         invoke_exec( Handler, Event, Context )
     catch
-        throw:{?MODULE, result, Json} -> {ok, Json};
-        throw:{?MODULE, failure, Json} -> {handled, Json};
+        throw:{?MODULE, result, JsonMap} -> {ok, JsonMap};
+        throw:{?MODULE, failure, JsonMap} -> {handled, JsonMap};
         Type:Reason ->
             Trace = erlang:get_stacktrace(),
             Message = iolist_to_binary(
-                        io_lib:format( "terminated with exception {~w, ~w}",
+                        io_lib:format( "terminated with exception {~p, ~p}",
                                        [Type, Reason] ) ),
             message_send( format( "~s with trace ~n~p", [Message, Trace] ) ),
-            Response = jiffy:encode( #{errorType => 'HandlerFailure',
-                                       errorMessage => Message} ),
+            Response = #{errorType => 'HandlerFailure',
+                         errorMessage => Message},
             {unhandled, Response}
     end.
 
@@ -307,6 +293,15 @@ to_list( V ) when is_integer(V) -> integer_to_list(V);
 to_list( V ) when is_float(V) -> float_to_list(V);
 to_list( V ) -> V.
 
+to_binary(T) when is_pid(T) ->
+    iolist_to_binary(pid_to_list(T));
+to_binary(T) when is_binary(T) ->
+    T;
+to_binary(T) when is_list(T) ->
+    list_to_binary(T);
+to_binary(T) when is_atom(T) ->
+    atom_to_binary(T, latin1).
+
 invoke_exec( Handler, Event, Context ) ->
     case Handler:handle( Event, Context ) of
         ok -> succeed( "completed successfully" );
@@ -328,14 +323,13 @@ format_reqid( ReqId, Format, Values ) ->
 format( Format, Values ) ->
     iolist_to_binary( io_lib:format( Format, Values ) ).
 
-complete( #{success := _} = Response ) ->
+complete( #{success := Response} ) ->
     complete( result, Response );
-complete( #{errorType := _} = Response ) ->
+complete( #{errorType := Response} ) ->
     complete( failure, Response ).
 
 complete( Type, Response ) ->
-    Message = jiffy:encode( Response ),
-    throw( {?MODULE, Type, Message} ).
+    throw( {?MODULE, Type, Response} ).
 
 
 message_send( Message ) ->

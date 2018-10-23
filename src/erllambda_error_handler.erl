@@ -38,19 +38,20 @@ start_link() ->
 init([]) ->
     {ok, #{}}.
 
-handle_event({EventType, _Gleader, {_Pid, Format, Data}}, State)
-  when EventType =:= error;
-       EventType =:= warning_msg;
-       EventType =:= info_msg ->
-    StrBin = iolist_to_binary(io_lib:format(Format, Data)),
-    output(StrBin),
+%general cae of logs
+handle_event({EventType, _Gleader,
+             {_Pid, Format, Data}}, State)
+        when EventType =:= error;
+             EventType =:= warning_msg;
+             EventType =:= info_msg ->
+    output(iolist_to_binary(io_lib:format(Format, Data))),
     {ok, State};
-handle_event({EventType, _Gleader, {_Pid, _Type, Report}}, State)
-  when EventType =:= error_report;
-       EventType =:= warning_report;
-       EventType =:= info_report ->
-    StrBin = iolist_to_binary(io_lib:format("~p", [Report])),
-    output(StrBin),
+handle_event({EventType, _Gleader,
+             {_Pid, _Type, Report}}, State)
+        when EventType =:= error_report;
+             EventType =:= warning_report;
+             EventType =:= info_report ->
+    output(iolist_to_binary(io_lib:format("~p", [Report]))),
     {ok, State};
 handle_event(_, State) ->
     {ok, State}.
@@ -71,6 +72,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-
-output(Str) ->
-    io:fwrite("~s~s", [Str, ?MSG_END]).
+%% DataDog integration special case
+output(BinStr) ->
+    io:fwrite("~s~s", [BinStr, ?MSG_END]).
