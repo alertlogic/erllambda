@@ -259,9 +259,10 @@ invoke( Handler, Event, Context ) ->
             Message = iolist_to_binary(
                         io_lib:format( "terminated with exception {~p, ~p}",
                                        [Type, Reason] ) ),
-            message_send( format( "~s with trace ~n~p", [Message, Trace] ) ),
+            message_send( format( "~s with trace ~p", [Message, Trace] ) ),
             Response = #{errorType => 'HandlerFailure',
-                         errorMessage => Message},
+                         errorMessage => Message,
+                         stackTrace => format("~p", [Trace])},
             {unhandled, Response}
     end.
 

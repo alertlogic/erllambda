@@ -122,12 +122,10 @@ handle_info(poll, #state{handler = Handler} = State) ->
         {ok, Json} ->
             invoke_success(State, ReqId, Json),
             {noreply, State#state{timer_ref = erlang:send_after(0, self(), poll)}};
-        {handled, ErrJson} ->
-            invoke_success(State, ReqId, ErrJson),
-            {noreply, State#state{timer_ref = erlang:send_after(0, self(), poll)}};
-        {unhandled, ErrJson} ->
+        {Error, ErrJson}
+                when Error == handled orelse Error == unhandled->
             invoke_error(State, ReqId, ErrJson),
-            {stop, {error, ErrJson} , State}
+            {noreply, State#state{timer_ref = erlang:send_after(0, self(), poll)}}
     end;
 handle_info(Info, State) ->
     erllambda:message("Unknown info: ~p", [Info]),
@@ -174,7 +172,7 @@ invoke_success(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
         (?INVOKE_REPLAY_SUCCESS_PATH(AwsReqId))/binary>>),
     erllambda:message("Invoke Success path ~p ~s", [os:system_time(millisecond), FullPath]),
     %% infinity due to container Freeze/thaw behaviour
-    case request(FullPath, post, [], Body, infinity, AwsCfg) of
+    case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
         {ok, {{202, _}, _Hdrs, _Body}} ->
             ok;
         {error, _} = Err ->
@@ -188,8 +186,7 @@ invoke_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
         (?INVOKE_REPLAY_ERROR_PATH(AwsReqId))/binary>>),
     erllambda:message("Invoke Error path ~p ~s", [os:system_time(millisecond), FullPath]),
     %% infinity due to container Freeze/thaw behaviour
-    %% TODO remove double encode
-    case request(FullPath, post, [], Body, infinity, AwsCfg) of
+    case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
         {ok, {{202, _}, _Hdrs, _Body}} ->
             ok;
         {error, _} = Err ->
@@ -209,6 +206,10 @@ set_context(ReqId) ->
         "\"Invoke Next",
         [Day, month(Month), Year, Hour, Min, Sec]
     ).
+
+encode_body(Body) when is_binary(Body) -> Body;
+encode_body(Body) when is_map(Body) -> jiffy:encode(Body).
+
 
 month(1) -> 'Jan';
 month(2) -> 'Feb';
