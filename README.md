@@ -20,7 +20,7 @@ Erlang Lambda functions implement a simple one function, behavior:
 -export([handle/2]).
 
 -spec init( Context :: map() ) -> ok | none().
-handle( Context ) ->
+init( Context ) ->
     erllambda:succeed( "Hello BYOL!" ).
     
 -spec handle( Event :: map(), Context :: map() ) -> {ok, Body} | {error, ErrorBody}.
