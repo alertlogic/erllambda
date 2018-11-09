@@ -16,11 +16,16 @@ Erlang Lambda functions implement a simple one function, behavior:
 -module(hello_lambda).
 
 -behavior(erllambda).
+-export([init/1]).
 -export([handle/2]).
 
--spec handle( Event :: map(), Context :: map() ) -> ok | none().
+-spec init( Context :: map() ) -> ok | none().
+handle( Context ) ->
+    erllambda:succeed( "Hello BYOL!" ).
+    
+-spec handle( Event :: map(), Context :: map() ) -> {ok, Body} | {error, ErrorBody}.
 handle( Event, Context ) ->
-    erllambda:succeed( "Hello World!" ).
+    erllambda:succeed( "Hello Event ~p", [Event] ).
 ```
 
 There are really two ways to get started.  First you can checkout and review
@@ -41,6 +46,7 @@ More detailed information about developing Lambda functions using
 `erllambda` can be found in:
 
 - [Writing AWS Lambda Functions in Erlang](doc/tutorial.md)
+- [Deploying AWS Lambda Functions in Erlang](doc/deployment.md)
 - [`erllambda` How-To](doc/howto.md)
 
 
