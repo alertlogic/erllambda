@@ -5,11 +5,11 @@
 %% starts the simple http server endpoint used by the javascript driver.
 %%
 %%
-%% @copyright 2017 Alert Logic, Inc
-%% @author Paul Fisher <pfisher@alertlogic.com>
+%% @copyright 2018 Alert Logic, Inc
 %%%---------------------------------------------------------------------------
 -module(erllambda_app).
 -author('Paul Fisher <pfisher@alertlogic.com>').
+-author('Evgeny Bob <ebob@alertlogic.com>').
 
 -behavior(application).
 
@@ -26,7 +26,6 @@ start(_StartType, _StartArgs) ->
     EnvWihtoutSecret = erllambda_poller:hide_secret(erllambda_poller:os_env2map()),
     erllambda:message("Erllambda Starting at ~p with Env ~p",
         [os:system_time(millisecond), EnvWihtoutSecret]),
-%%    erllambda:message("Cyphers ~p ", [[X || X <- ssl:cipher_suites()]]),
     erllambda_sup:start_link().
 
 %%--------------------------------------------------------------------

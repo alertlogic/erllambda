@@ -1,5 +1,5 @@
 {application, erllambda,
- [{description, "Erlang AWS Lambda Initiator & Utilities"},
+ [{description, "Erlang AWS Lambda and Utilities"},
   {vsn, "git"},
   {registered, []},
   {mod, {erllambda_app, []}},
@@ -8,17 +8,15 @@
     kernel,
     stdlib,
     lhttpc,
-    hackney,
     erlcloud,
     iwsutil,
-    jiffy,
-    al_uuid
+    jiffy
    ]},
   {env,
    [
    ]},
   {modules, []},
   {contributors, []},
-  {licenses, []},
-  {links, []}
+  {licenses, ["MIT"]},
+  {links, [{"Github", "https://github.com/alertlogic/erllambda"}]}
  ]}.

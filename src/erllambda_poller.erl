@@ -1,13 +1,14 @@
 %%%-------------------------------------------------------------------
-%%% @author ebob
-%%% @copyright (C) 2018, <COMPANY>
-%%% @doc
-%%%
-%%% @end
-%%% Created : 16. Oct 2018 00:11
+%% @doc erllambda_poller - AWS Lambda for Erlang Interface
+%%
+%% This module implmentes polling for event from AWS Lambda Runtime API
+%%
+%%
+%% @copyright 2018 Alert Logic, Inc
 %%%-------------------------------------------------------------------
 -module(erllambda_poller).
--author("ebob").
+
+-author('Evgeny Bob <ebob@alertlogic.com>').
 
 -behaviour(gen_server).
 

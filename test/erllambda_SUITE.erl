@@ -150,25 +150,6 @@ test_invalid_request_no_context( Config ) ->
        {error, {response, #{<<"errorType">> := <<"InvalidRequest">>}}},
        invalid_request( Body, proplists:get_value( eee_ct, Config ) ) ).
 
-test_socket_file( _Config ) ->
-    true = os:unsetenv( "EEE_SOCKET_FILE" ),
-    ?assertMatch(
-        "/tmp/eeecomm.sock",
-        erllambda_app:socket_file() ),
-
-    true = os:putenv( "EEE_SOCKET_FILE", "/var/run/eee/eeecomm1.sock" ),
-    ?assertMatch(
-        "/var/run/eee/eeecomm1.sock",
-        erllambda_app:socket_file() ),
-    true = os:unsetenv( "EEE_SOCKET_FILE" ),
-
-    true = os:putenv( "EEE_SOCKET_FILE", "/var/run/eee/eeecomm2.sock" ),
-    ?assertMatch(
-        "/var/run/eee/eeecomm2.sock",
-        erllambda_app:socket_file() ),
-    true = os:unsetenv( "EEE_SOCKET_FILE" ).
-
-    
 
 %%******************************************************************************
 %% Internal Functions

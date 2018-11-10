@@ -10,10 +10,11 @@
 %%  https://aws.amazon.com/blogs/compute/container-reuse-in-lambda/
 %%
 %%
-%% @copyright 2017 Alert Logic, Inc
+%% @copyright 2018 Alert Logic, Inc
 %%%---------------------------------------------------------------------------
 -module(erllambda).
 -author('Paul Fisher <pfisher@alertlogic.com>').
+-author('Evgeny Bob <ebob@alertlogic.com>').
 
 
 %% public - high-level migration orchestration endpoints
@@ -34,25 +35,18 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
-
-%%============================================================================
-%% Type Definitions
-%% @see src/erllambda.hrl
-%%============================================================================
-
 -define(AL_CTX_SD_ID, "context@36312").
 
 %%============================================================================
 %% Callback Interface Definition
 %%============================================================================
 %%%---------------------------------------------------------------------------
+-callback init( Context :: map() ) ->
+    ok | {ok, iolist() | map()} | {error, iolist()}.
+
 -callback handle( Event :: map(), Context :: map() ) ->
     ok | {ok, iolist() | map()} | {error, iolist()}.
 
-%%%---------------------------------------------------------------------------
-%% @doc Handle lambda invocation
-%%
-    
 
 %%============================================================================
 %% API Functions
@@ -278,6 +272,7 @@ invoke_credentials( Context, _ ) ->
 invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
                              <<"AWS_SECRET_ACCESS_KEY">> := Key,
                              <<"AWS_SESSION_TOKEN">> := Token }) ->
+%%TODO need to define expiration
 %%                             <<"x-amz-deadline-ns">> := Expire}) ->
 %%                             <<"AWS_CREDENTIAL_EXPIRE_TIME">> := Expire
 
@@ -286,22 +281,6 @@ invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
                           security_token = to_list(Token),
                           expiration = undefined },
     application:set_env( iwsutil, config, Config ).
-
-to_list( V ) when is_list(V) -> V;
-to_list( V ) when is_binary(V) -> binary_to_list(V);
-to_list( V ) when is_atom(V) -> atom_to_list(V);
-to_list( V ) when is_integer(V) -> integer_to_list(V);
-to_list( V ) when is_float(V) -> float_to_list(V);
-to_list( V ) -> V.
-
-to_binary(T) when is_pid(T) ->
-    iolist_to_binary(pid_to_list(T));
-to_binary(T) when is_binary(T) ->
-    T;
-to_binary(T) when is_list(T) ->
-    list_to_binary(T);
-to_binary(T) when is_atom(T) ->
-    atom_to_binary(T, latin1).
 
 invoke_exec( Handler, Event, Context ) ->
     case Handler:handle( Event, Context ) of
@@ -335,6 +314,22 @@ complete( Type, Response ) ->
 
 message_send( Message ) ->
     error_logger:info_msg( "~s", [Message] ).
+
+to_list( V ) when is_list(V) -> V;
+to_list( V ) when is_binary(V) -> binary_to_list(V);
+to_list( V ) when is_atom(V) -> atom_to_list(V);
+to_list( V ) when is_integer(V) -> integer_to_list(V);
+to_list( V ) when is_float(V) -> float_to_list(V);
+to_list( V ) -> V.
+
+to_binary(T) when is_pid(T) ->
+    iolist_to_binary(pid_to_list(T));
+to_binary(T) when is_binary(T) ->
+    T;
+to_binary(T) when is_list(T) ->
+    list_to_binary(T);
+to_binary(T) when is_atom(T) ->
+    atom_to_binary(T, latin1).
 
 
 %%====================================================================
