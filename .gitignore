@@ -15,4 +15,3 @@ rebar.lock
 *~
 #*
 *.tgz
-.setenv

@@ -86,10 +86,8 @@ nonl(S) ->
 
 nonl([], Accu) ->
   lists:reverse(Accu);
-
 nonl([$\n|T], Accu) ->
   nonl(nows(T), [$\  | Accu]);
-
 nonl([H|T], Accu) ->
   nonl(T, [H | Accu]).
 
