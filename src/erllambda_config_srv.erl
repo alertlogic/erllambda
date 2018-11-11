@@ -16,7 +16,7 @@
          terminate/2, code_change/3]).
 -export([start_link/0]).
 
-
+-include("erllambda.hrl").
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
@@ -29,14 +29,6 @@
           value :: any(),
           expire :: pos_integer()
 }).
-
-%%******************************************************************************
-%% Constant Definitions
-%%******************************************************************************
--define(CACHE_NAME, erllambda_config_cache).
--define(CACHE_GRACE_MSECS, (30 * 1000)).
--define(CACHE_MSECS(EXPIRE_SECS), ((EXPIRE_SECS * 1000) - ?CACHE_GRACE_MSECS)).
-
 
 %%******************************************************************************
 %% API functions

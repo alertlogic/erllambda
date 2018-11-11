@@ -22,11 +22,12 @@
 -export([message/1, message/2, message_ctx/2, message_ctx/3]).
 -export([metric/1, metric/2, metric/3, metric/4]).
 -export([get_remaining_ms/1]).
--export([region/0, environ/0, config/0]).
+-export([region/0, environ/0, config/0, config/1, config/2]).
 
 %% private - handler invocation entry point, used by http api
 -export([invoke/3]).
 
+-include("erllambda.hrl").
 -include_lib("erlcloud/include/erlcloud_aws.hrl").
 
 -ifdef(TEST).
@@ -44,7 +45,6 @@
 
 -callback handle( Event :: map(), Context :: map() ) ->
     ok | {ok, iolist() | map()} | {error, iolist()}.
-
 
 %%============================================================================
 %% API Functions
@@ -228,6 +228,14 @@ region() ->
 %%
 config() ->
     erllambda_util:config().
+
+-spec config( Services :: [service()] ) -> #aws_config{}.
+config(Services) ->
+    erllambda_util:config(Services).
+
+-spec config( Region :: region(), Options :: [option()] ) -> #aws_config{}.
+config(Region, Options) ->
+    erllambda_util:config(Region, Options).
 
 %%%---------------------------------------------------------------------------
 -spec environ() -> binary().
