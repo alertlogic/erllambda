@@ -10,7 +10,7 @@
 %%  https://aws.amazon.com/blogs/compute/container-reuse-in-lambda/
 %%
 %%
-%% @copyright 2018 Alert Logic, Inc
+%% @copyright 2018 Alert Logic, Inc.
 %%%---------------------------------------------------------------------------
 -module(erllambda).
 -author('Paul Fisher <pfisher@alertlogic.com>').
@@ -22,12 +22,10 @@
 -export([message/1, message/2, message_ctx/2, message_ctx/3]).
 -export([metric/1, metric/2, metric/3, metric/4]).
 -export([get_remaining_ms/1]).
--export([region/0, config/0]).
+-export([region/0, environ/0, config/0]).
 
 %% private - handler invocation entry point, used by http api
 -export([invoke/3]).
-
--export([to_binary/1, to_list/1]).
 
 -include_lib("erlcloud/include/erlcloud_aws.hrl").
 
@@ -155,8 +153,10 @@ metric(MName, Val, Type, Tags)
     NewTags = "#" ++
         string:join(
             lists:map(
-                fun ({T,V}) -> to_list(T) ++ ":" ++ to_list(V);
-                    (OtherTag) -> to_list(OtherTag)
+                fun ({T,V}) ->
+                        erllambda_util:to_list(T) ++ ":" ++ erllambda_util:to_list(V);
+                    (OtherTag) ->
+                        erllambda_util:to_list(OtherTag)
                 end, Tags
             ),
             ","
@@ -164,8 +164,8 @@ metric(MName, Val, Type, Tags)
     Ts = os:system_time(second),
     Msg = string:join([
         "MONITORING",
-        to_list(Ts),
-        to_list(Val),
+        erllambda_util:to_list(Ts),
+        erllambda_util:to_list(Val),
         Type,
         MName,
         NewTags
@@ -202,10 +202,10 @@ get_remaining_ms(_) ->
 %% This function will return the default region in which the Lambda function
 %% is running.
 %%
-%% @see iwsutil:region/0
+%% @see erllambda_util:region/0
 %%
 region() ->
-    iwsutil:region().
+    erllambda_util:region().
 
 
 %%%---------------------------------------------------------------------------
@@ -222,13 +222,24 @@ region() ->
 %% seconds.
 %%
 %% If the application needs to assume an alternative role, it should call
-%% the {@link iwsutil:config/1,2} functions directly.
+%% the {@link erllambda_util:config/1,2} functions directly.
 %%
-%% @see iwsutil:config/0
+%% @see erllambda_util:config/0
 %%
 config() ->
-    iwsutil:config().
+    erllambda_util:config().
 
+%%%---------------------------------------------------------------------------
+-spec environ() -> binary().
+%%%---------------------------------------------------------------------------
+%% @doc The default region
+%%
+%% This function will return the erllambba context
+%%
+%% @see erllambda_util:environ/0
+%%
+environ() ->
+    erllambda_util:environ().
 
 %%============================================================================
 %% Private API Function
@@ -242,7 +253,7 @@ config() ->
 %%
 invoke( Handler, Event, Context ) ->
     application:set_env( erllambda, handler, Handler ),
-    invoke_credentials( Context, application:get_env( iwsutils, config )),
+    invoke_credentials( Context, application:get_env( erllambda, config )),
     try 
         invoke_exec( Handler, Event, Context )
     catch
@@ -276,11 +287,11 @@ invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
 %%                             <<"x-amz-deadline-ns">> := Expire}) ->
 %%                             <<"AWS_CREDENTIAL_EXPIRE_TIME">> := Expire
 
-    Config = #aws_config{ access_key_id = to_list(Id),
-                          secret_access_key = to_list(Key),
-                          security_token = to_list(Token),
+    Config = #aws_config{ access_key_id = erllambda_util:to_list(Id),
+                          secret_access_key = erllambda_util:to_list(Key),
+                          security_token = erllambda_util:to_list(Token),
                           expiration = undefined },
-    application:set_env( iwsutil, config, Config ).
+    application:set_env( erllambda, config, Config ).
 
 invoke_exec( Handler, Event, Context ) ->
     case Handler:handle( Event, Context ) of
@@ -314,23 +325,6 @@ complete( Type, Response ) ->
 
 message_send( Message ) ->
     error_logger:info_msg( "~s", [Message] ).
-
-to_list( V ) when is_list(V) -> V;
-to_list( V ) when is_binary(V) -> binary_to_list(V);
-to_list( V ) when is_atom(V) -> atom_to_list(V);
-to_list( V ) when is_integer(V) -> integer_to_list(V);
-to_list( V ) when is_float(V) -> float_to_list(V);
-to_list( V ) -> V.
-
-to_binary(T) when is_pid(T) ->
-    iolist_to_binary(pid_to_list(T));
-to_binary(T) when is_binary(T) ->
-    T;
-to_binary(T) when is_list(T) ->
-    list_to_binary(T);
-to_binary(T) when is_atom(T) ->
-    atom_to_binary(T, latin1).
-
 
 %%====================================================================
 %% Test Functions

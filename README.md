@@ -30,13 +30,13 @@ handle( Event, Context ) ->
 
 There are really two ways to get started.  First you can checkout and review
 the
-[`erllambda_example`](https://algithub.pd.alertlogic.net/alertlogic/erllambda_example)
+[`erllambda_example`](https://github.com/alertlogic/erllambda_example)
 project.  This is a complete working AWS Lambda written in Erlang, with the
 goal of demonstrating the capabilities available as part of the framework,
 and how to write Lambda functions for different purposes in AWS.
 
 The second path is to use the
-[`rebar3_erllambda`](https://algithub.pd.alertlogic.net/alertlogic/rebar3_erllambda)
+[`rebar3_erllambda`](https://github.com/alertlogic/rebar3_erllambda)
 plugin for `rebar3`.  This will produce a fully working `erllambda` project
 that can be used as a starting point for any new development.  This plugin
 also implements additional `rebar3 erllambda zip` building and AWS Lambda
@@ -55,6 +55,19 @@ More detailed information about developing Lambda functions using
 The `erllambda` application owned by the
 [Data Processing Team](https://alertlogic.atlassian.net/wiki/display/DPT).
 
+## Roadmap / TODO
+
+- Finish Tutorials
+- more common tests
+- get_remaining_ms API
+- add MIX support
+- harden error reporting 
+- support Runtime Init error
+- remote GIT links in rebar and make it https
+- make public
+- add travis when public
+- Erlang 21.X
+
 
 # Dependencies
 
@@ -63,23 +76,19 @@ The `erllambda` application is built using
 automatically pulled in when `erllambda` is used in other projects
 `rebar.config`.
 
-In addition makefile support is available in
-[makeincl](https://algithub.pd.alertlogic.net/alertlogic/makeincl) with
-makes builds and pipeline integration trivial.
-
 
 # How to report defects
 
 If you encounter an problem, or simply have a question about using this
 repo, please submit a
-[github issue](https://algithub.pd.alertlogic.net/alertlogic/erllambda/issues).
+[github issue](https://github.com/alertlogic/erllambda/issues).
 
 
 # How to contribute
 
 Contributions to this repo are always welcome.  If you have an idea for
 improving the this or related components, please submit a
-[github issue](https://algithub.pd.alertlogic.net/alertlogic/erllambda/issues),
+[github issue](https://github.com/alertlogic/erllambda/issues),
 or simply submit a PR directly that implements your improvement.
 
 For complex changes, or the introduction of a major feature, it is
@@ -98,23 +107,17 @@ coverage percentage, and does not decrease it.
 developing `erllambda` should be as easy as forking the repo, and then:
 
 ```
-git clone git@algithub.pd.alertlogic.net:${USER}/erllambda.git
+git clone git@github.com:${USER}/erllambda.git
 cd erllambda
-git remote add upstream git@algithub.pd.alertlogic.net:alertlogic/erllambda.git
-make env
-. .setenv
-make deps compile test
+git remote add upstream git@github.com:alertlogic/erllambda.git
+rebar3 compile 
+rebar3 ct
 ```
 
-If this is the first time that you are setting up to develop on a repo that
-uses the utilizes the
-[makeincl](https://algithub.pd.alertlogic.net/alertlogic/makeincl) system,
-you will need to perform the setup instructions detailed in the
-[makeincl README.md](https://algithub.pd.alertlogic.net/alertlogic/makeincl/blob/master/README.md).
-
+## Packaging and Deployment
 In addition, if you are developing on a non-linux system, you will want to
 setup DockerMachine and utilize the
-[docker-image-makeincl](https://algithub.pd.alertlogic.net/alertlogic/docker-image-makeincl)
+[erllambda_docker](https://github.com/alertlogic/erllambda_docker)
 repo. This will allow you to perform release builds for `erllambda` based
 components directly from the command line first by deploying your personal
 stack:
@@ -128,32 +131,5 @@ and then subsequently updating the function:
 ```
 dsh make function-update
 ```
-
-
-## Makefile Targets
-
-After initial setup, and in future shell sessions, only do the following is
-needed configure the environment for developement:
-
-```sh
-cd erllambda
-. .setenv
-```
-
-The main `makefile` targets for development and test are as follows:
-
-- `make` will compile, execute the eunit tests, and generate a coverage
-  report.
-- `make unit` same as plain `make`
-- `make ct` will compile, execute the common tests, and generate a coverage
-  report.
-- `make test` will compile, execute both the eunit and common tests, and
-  generate a consolidated coverage report.
-
-Full documentation of the makefile targets available and how to customize
-`allib` makefiles can be found in
-[makeincl](https://algithub.pd.alertlogic.net/alertlogic/makeincl).
-
-
 
 <!--- vim: sw=4 et ts=4 -->

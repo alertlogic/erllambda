@@ -6,7 +6,7 @@
 %% works.
 %%
 %%
-%% @copyright 2017 AlertLogic, Inc.
+%% @copyright 2018 Alert Logic, Inc.
 %%%-----------------------------------------------------------------------------
 -module(erllambda_SUITE).
 -author('Paul Fisher <pfisher@alertlogic.com>').
@@ -83,8 +83,7 @@ test_verify( Config ) ->
 test_process( Config ) ->
     Context = #{<<"AWS_ACCESS_KEY_ID">> => <<"ID">>,
                 <<"AWS_SECRET_ACCESS_KEY">> => <<"KEY">>,
-                <<"AWS_SECURITY_TOKEN">> => <<"TOKEN">>,
-                <<"AWS_CREDENTIAL_EXPIRE_TIME">> => 123456},
+                <<"AWS_SECURITY_TOKEN">> => <<"TOKEN">>},
     ?assertMatch( {ok, #{<<"success">> := _}},
                   erllambda_ct:process( #{result => ok}, Context, Config ) ).
 

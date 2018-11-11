@@ -2,7 +2,7 @@
 %% @doc Utilities for erllambda common tests
 %%
 %%
-%% @copyright 2017 Alertlogic, Inc.
+%% @copyright 2018 Alert Logic, Inc.
 %%%-----------------------------------------------------------------------------
 -module(erllambda_ct).
 -author('Paul Fisher <pfisher@alertlogic.com>').

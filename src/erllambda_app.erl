@@ -5,7 +5,7 @@
 %% starts the simple http server endpoint used by the javascript driver.
 %%
 %%
-%% @copyright 2018 Alert Logic, Inc
+%% @copyright 2018 Alert Logic, Inc.
 %%%---------------------------------------------------------------------------
 -module(erllambda_app).
 -author('Paul Fisher <pfisher@alertlogic.com>').

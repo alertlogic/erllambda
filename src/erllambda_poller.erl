@@ -4,7 +4,7 @@
 %% This module implmentes polling for event from AWS Lambda Runtime API
 %%
 %%
-%% @copyright 2018 Alert Logic, Inc
+%% @copyright 2018 Alert Logic, Inc.
 %%%-------------------------------------------------------------------
 -module(erllambda_poller).
 
