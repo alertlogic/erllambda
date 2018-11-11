@@ -6,7 +6,7 @@
 %% works.
 %%
 %%
-%% @copyright 2017 AlertLogic, Inc.
+%% @copyright 2018 Alert Logic, Inc.
 %%%-----------------------------------------------------------------------------
 -module(erllambda_SUITE).
 -author('Paul Fisher <pfisher@alertlogic.com>').
@@ -83,8 +83,7 @@ test_verify( Config ) ->
 test_process( Config ) ->
     Context = #{<<"AWS_ACCESS_KEY_ID">> => <<"ID">>,
                 <<"AWS_SECRET_ACCESS_KEY">> => <<"KEY">>,
-                <<"AWS_SECURITY_TOKEN">> => <<"TOKEN">>,
-                <<"AWS_CREDENTIAL_EXPIRE_TIME">> => 123456},
+                <<"AWS_SECURITY_TOKEN">> => <<"TOKEN">>},
     ?assertMatch( {ok, #{<<"success">> := _}},
                   erllambda_ct:process( #{result => ok}, Context, Config ) ).
 
@@ -150,25 +149,6 @@ test_invalid_request_no_context( Config ) ->
        {error, {response, #{<<"errorType">> := <<"InvalidRequest">>}}},
        invalid_request( Body, proplists:get_value( eee_ct, Config ) ) ).
 
-test_socket_file( _Config ) ->
-    true = os:unsetenv( "EEE_SOCKET_FILE" ),
-    ?assertMatch(
-        "/tmp/eeecomm.sock",
-        erllambda_app:socket_file() ),
-
-    true = os:putenv( "EEE_SOCKET_FILE", "/var/run/eee/eeecomm1.sock" ),
-    ?assertMatch(
-        "/var/run/eee/eeecomm1.sock",
-        erllambda_app:socket_file() ),
-    true = os:unsetenv( "EEE_SOCKET_FILE" ),
-
-    true = os:putenv( "EEE_SOCKET_FILE", "/var/run/eee/eeecomm2.sock" ),
-    ?assertMatch(
-        "/var/run/eee/eeecomm2.sock",
-        erllambda_app:socket_file() ),
-    true = os:unsetenv( "EEE_SOCKET_FILE" ).
-
-    
 
 %%******************************************************************************
 %% Internal Functions

@@ -14,7 +14,4 @@ _checkouts
 rebar.lock
 *~
 #*
-js/npm-debug.log
-js/node_modules
 *.tgz
-.setenv

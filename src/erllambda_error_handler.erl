@@ -1,9 +1,15 @@
 %%%---------------------------------------------------------------------------
 %% @doc erllambda_error_handler - error_logger's handler for friendly
-%% CloudWatch logging from erllambda
+%% This module implements the Erlang <code>application</code> behavior, and
+%% starts the simple http server endpoint used by the javascript driver.
+%%
+%%
+%% @copyright 2018 Alert Logic, Inc.
 %%%---------------------------------------------------------------------------
 -module(erllambda_error_handler).
 -author('Anton Zaets <anton.zaets@alertlogic.com>').
+-author('Evgeny Bob <ebob@alertlogic.com>').
+
 -behaviour(gen_event).
 
 %% ------------------------------------------------------------------
@@ -23,7 +29,6 @@
          terminate/2,
          code_change/3]).
 
--define(MSG_END, <<"\t\n">>).
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
@@ -38,19 +43,20 @@ start_link() ->
 init([]) ->
     {ok, #{}}.
 
-handle_event({EventType, _Gleader, {_Pid, Format, Data}}, State)
-  when EventType =:= error;
-       EventType =:= warning_msg;
-       EventType =:= info_msg ->
-    StrBin = iolist_to_binary(io_lib:format(Format, Data)),
-    output(StrBin),
+%general cae of logs
+handle_event({EventType, _Gleader,
+             {_Pid, Format, Data}}, State)
+        when EventType =:= error;
+             EventType =:= warning_msg;
+             EventType =:= info_msg ->
+    output(io_lib:format(Format, Data)),
     {ok, State};
-handle_event({EventType, _Gleader, {_Pid, _Type, Report}}, State)
-  when EventType =:= error_report;
-       EventType =:= warning_report;
-       EventType =:= info_report ->
-    StrBin = iolist_to_binary(io_lib:format("~p", [Report])),
-    output(StrBin),
+handle_event({EventType, _Gleader,
+             {_Pid, _Type, Report}}, State)
+        when EventType =:= error_report;
+             EventType =:= warning_report;
+             EventType =:= info_report ->
+    output(io_lib:format("~p", [Report])),
     {ok, State};
 handle_event(_, State) ->
     {ok, State}.
@@ -71,6 +77,21 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-
 output(Str) ->
-    io:fwrite("~s~s", [Str, ?MSG_END]).
+    io:fwrite("~s~n", [nonl(Str)]).
+
+%% replace all '\n' with space and consume all the whitespace after '\n'
+nonl(S) ->
+  nonl(S, []).
+
+nonl([], Accu) ->
+  lists:reverse(Accu);
+nonl([$\n|T], Accu) ->
+  nonl(nows(T), [$\  | Accu]);
+nonl([H|T], Accu) ->
+  nonl(T, [H | Accu]).
+
+%% remove all the leading whitespace
+nows([]) -> [];
+nows([$\  | T]) -> nows(T);
+nows(T) -> T.

@@ -5,11 +5,11 @@
 %% exists, but starts no server processes.
 %%
 %%
-%% @copyright 2016 Alert Logic, Inc
-%% @author Paul Fisher <pfisher@alertlogic.com>
+%% @copyright 2018 Alert Logic, Inc.
 %%%---------------------------------------------------------------------------
 -module(erllambda_sup).
 -author('Paul Fisher <pfisher@alertlogic.com>').
+-author('Evgeny Bob <ebob@alertlogic.com>').
 
 -behaviour(supervisor).
 
@@ -31,8 +31,18 @@ start_link() ->
 %% Supervisor callbacks
 %%====================================================================
 init([]) ->
-    {ok, {{one_for_one, 10, 10}, []} }.
+    Children = [
+        erllambda_poller:spec(),
+        server_spec( erllambda_config_srv, [] )
+    ],
+    {ok, {{one_for_one, 5, 10}, Children}}.
 
+server_spec( Module, Args ) ->
+    #{id => Module,
+        start => {Module, start_link, Args},
+        restart => permanent, shutdown => (15 * 1000), type => worker,
+        modules => [Module]
+    }.
 
 %%====================================================================
 %% Internal functions

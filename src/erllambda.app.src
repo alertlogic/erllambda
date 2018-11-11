@@ -1,5 +1,5 @@
 {application, erllambda,
- [{description, "Erlang AWS Lambda Initiator & Utilities"},
+ [{description, "Erlang AWS Lambda and Utilities"},
   {vsn, "git"},
   {registered, []},
   {mod, {erllambda_app, []}},
@@ -7,36 +7,37 @@
    [
     kernel,
     stdlib,
-    cowboy,
     lhttpc,
     erlcloud,
-    iwsutil,
-    jiffy,
-    al_uuid
+    jiffy
    ]},
   {env,
    [
-    %% the list of protocols the http endpoint should listen.
-    %%
-    %% The default is to list on "unix" domain protocol.  This can also be
-    %% specified as "tcp", or both "unix, tcp".  This value can be overriden
-    %% via the environment variable ERLLAMBDA_LISTEN_PROTOCOLS.
-    {listen_protocols, "unix"},
+    %% execution AWS region, typically only defined by some controlling
+    %% framework.
+    {region, undefined},
 
-    %% name of the socket file to use when running in lambda mode
-    {socket_file, "/tmp/eeecomm.sock"},
+    %% execution AWS accountid, typically only defined by some controlling
+    %% framework.
+    {accountid, undefined},
 
-    %% idle timeout for Erl side of the Lambda
-    %% let it be 5min and let JS side kill us accordingly
-    %% make it configurable for EEE
-    {idle_timeout, 300000},
+    %% execution environ (typically USER or base stack name), typically
+    %% only defined by some controlling framework.
+    {environ, undefined},
 
-    %% port number to use when running in ecs mode.  This value can be
-    %% overridden via the environment variable ERLLAMBDA_TCP_PORT.
-    {tcp_port, 6789}
+    %% predefined erlcloud config that is set by some controlling
+    %% framework, so that client applications can get valid base config
+    %% when it is otherwise not available via erlcloud_aws:auto_config/0.
+    %% The default is for this to be undefined, which will instead use
+    %% erlcloud_aws:auto_config/0.
+    {config, undefined},
+    %% set the STS expiration to max by default.
+    {default_role_duration_sec, 3600},
+    %% how much upfront to evict the STS token record
+    {default_role_evict_sec, 10}
    ]},
   {modules, []},
   {contributors, []},
-  {licenses, []},
-  {links, []}
+  {licenses, ["MIT"]},
+  {links, [{"Github", "https://github.com/alertlogic/erllambda"}]}
  ]}.

@@ -1,4 +1,5 @@
 -module(erllambda_test).
+
 -behavior(erllambda).
 
 -export([handle/2]).
@@ -22,7 +23,7 @@ handle( #{<<"test">> := <<"test_fail_error">>,
           <<"message">> := Message}, _Ctx ) ->
     {error, Message};
 handle( #{<<"test">> := <<"test_except_error_undef">>}, _Ctx ) ->
-    erllmabda:fail( "never works" );
+    erllambda:fail( "never works" );
 handle( _Event, _Context ) ->
     case {erllambda:region(), erllambda:config()} of
         {Region, #aws_config{}} when is_binary(Region) -> ok;
