@@ -82,7 +82,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 output(Format, Data) ->
-    io:fwrite(format(Format, Data)).
+    io:fwrite([format(Format, Data), "\n"]).
 
 format(Format, Data) ->
     Format1 = io_lib:scan_format(Format, Data),
@@ -97,7 +97,7 @@ reformat([#{control_char := C} = M | T], Width) when C =:= $p; C =:= $P ->
     [M#{width => Width} | reformat(T, Width)];
 reformat([H | T], Width) ->
     [H | reformat(T, Width)];
-reformat([], Width) ->
+reformat([], _Width) ->
     [].
 
 one_line_it(Text) ->
