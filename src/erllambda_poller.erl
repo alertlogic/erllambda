@@ -110,7 +110,7 @@ handle_cast(Info, State) ->
 
 %% @private
 handle_info(poll, #state{runtime_addr = undefined} = State) ->
-    erllambda:message("Runtime Addressed not set - not BYOL?"),
+    erllambda:message("Runtime address not set - not BYOL?"),
     {noreply, State};
 handle_info(poll, #state{handler = Handler} = State) ->
     %% SYNC to RUNTIME
