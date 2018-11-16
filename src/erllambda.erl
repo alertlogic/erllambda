@@ -322,10 +322,10 @@ format_reqid( ReqId, Format, Values ) ->
 format( Format, Values ) ->
     iolist_to_binary( io_lib:format( Format, Values ) ).
 
-complete( #{success := Response} ) ->
+complete( #{success := _} = Response) ->
     complete( result, Response );
-complete( #{errorType := Response} ) ->
-    complete( failure, Response ).
+complete( #{errorType := _} = Response) ->
+    complete( failure, Response).
 
 complete( Type, Response ) ->
     throw( {?MODULE, Type, Response} ).
