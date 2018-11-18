@@ -232,7 +232,7 @@ set_context(ReqId) ->
     {{Year, Month, Day}, {Hour, Min, Sec}} = calendar:universal_time(),
     erllambda:message_ctx(ReqId,
         "127.0.0.1 - - [~2..0b/~s/~4..0b:~2..0b:~2..0b:~2..0b -0000] "
-        "\"Invoke Next",
+        "Invoke Next",
         [Day, month(Month), Year, Hour, Min, Sec]
     ).
 
