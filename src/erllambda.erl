@@ -13,16 +13,13 @@
 %% @copyright 2018 Alert Logic, Inc.
 %%%---------------------------------------------------------------------------
 -module(erllambda).
--author('Paul Fisher <pfisher@alertlogic.com>').
--author('Evgeny Bob <ebob@alertlogic.com>').
-
 
 %% public - high-level migration orchestration endpoints
 -export([succeed/1, succeed/2, fail/1, fail/2]).
 -export([message/1, message/2, message_ctx/2, message_ctx/3]).
 -export([metric/1, metric/2, metric/3, metric/4]).
--export([get_remaining_ms/1]).
--export([region/0, environ/0, config/0, config/1, config/2]).
+-export([get_remaining_ms/1, get_aws_request_id/1]).
+-export([region/0, environ/0, accountid/0, config/0, config/1, config/2]).
 
 %% private - handler invocation entry point, used by http api
 -export([invoke/3]).
@@ -122,14 +119,11 @@ message_ctx( ReqId, Message ) ->
 %% This function will format the message using <code>io_lib:format/2</code>
 %% and then ensure it is output in the log for the lambda invocation.
 %%
-message_ctx( #{<<"x-amz-aws-request-Id">> := ReqId}, Format, Values ) ->
-    message_ctx(ReqId, Format, Values);
+message_ctx( Ctx, Format, Values ) when is_map (Ctx) ->
+    message_ctx(get_aws_request_id(Ctx), Format, Values);
 message_ctx( ReqId, Format, Values ) when is_binary(ReqId) ->
     Message = format_reqid( ReqId, Format, Values ),
-    message_send( Message );
-message_ctx( _ReqId, Format, Values) ->
-    message_ctx(<<"illegal_request_id">>, Format, Values).
-
+    message_send( Message ).
 
 -spec metric(MetricName :: string(), MetricValue :: integer(),
              Type :: string(), Tags :: list()) -> ok.
@@ -175,24 +169,37 @@ metric(MName, Val, Type, Tags)
 
 
 %%%---------------------------------------------------------------------------
--spec get_remaining_ms(map()) -> pos_integer() | undefined.
+-spec get_remaining_ms(map()) -> pos_integer().
 %%%---------------------------------------------------------------------------
 %% @doc The time remaining in our invoke
 %%
 %% This function will return the time remaining in ms in this given Lambda function
 %% invocation.
-%% it will return `undefined` is EEE case.
 %%
 %% @see JS style Context Function
 %% http://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-context.html
 %%
-get_remaining_ms(#{<<"TIME_STARTED_MS">>   := StartTs,
-                   <<"TIME_REMAINING_MS">> := RemTime}) ->
+get_remaining_ms(#{<<"lambda-runtime-deadline-ms">> := Deadline}) ->
     CurrentTs = os:system_time(millisecond),
-    RemTime - (CurrentTs - StartTs);
-get_remaining_ms(_) ->
-    undefined.
+    Deadline - CurrentTs.
 
+%%%---------------------------------------------------------------------------
+-spec get_aws_request_id(map()) -> binary() | undefined.
+%%%---------------------------------------------------------------------------
+%% @doc The time remaining in our invoke
+%%
+%% This function will return the Req ID of the invoke
+%% contains several alrenatives from new to old
+%% to support backward comatibility
+%%
+get_aws_request_id(#{<<"awsRequestId">> := ReqId}) ->
+    ReqId;
+get_aws_request_id(#{<<"lambda-runtime-aws-request-id">> := ReqId}) ->
+    ReqId;
+get_aws_request_id(#{<<"x-amz-aws-request-id">> := ReqId}) ->
+    ReqId;
+get_aws_request_id(#{"x-amzn-requestid" := ReqId}) ->
+    ReqId.
 
 %%%---------------------------------------------------------------------------
 -spec region() -> binary().
@@ -249,33 +256,73 @@ config(Region, Options) ->
 environ() ->
     erllambda_util:environ().
 
+%%%---------------------------------------------------------------------------
+-spec accountid() -> binary().
+%%%---------------------------------------------------------------------------
+%% @doc The default region
+%%
+%% This function will return the account id in which we run
+%%
+%% @see erllambda_util:environ/0
+%%
+accountid() ->
+    erllambda_util:accountid().
+
 %%============================================================================
 %% Private API Function
 %%============================================================================
 
 %%%---------------------------------------------------------------------------
 -spec invoke( Handler :: module(), Event :: binary(),
-              Context :: binary() ) -> ok.
+              Context :: map() ) -> {ok, term()} | {handled|unhandled, term()}.
 %%%---------------------------------------------------------------------------
 %%
 %%
 invoke( Handler, Event, Context ) ->
     application:set_env( erllambda, handler, Handler ),
     invoke_credentials( Context, application:get_env( erllambda, config )),
-    try 
-        invoke_exec( Handler, Event, Context )
+    Parent = self (),
+    InvokeFun =
+        fun () ->
+            Res = invoke_exec(Handler, Event, Context),
+            Parent ! {handle, Res}
+        end,
+    % each handler should leave and dies in it's own process
+    {_, MonRef} = erlang:spawn_monitor( InvokeFun ),
+    receive
+        {handle, Res} ->
+            erlang:demonitor(MonRef, [flush, info]),
+            Res;
+        {'DOWN', MonRef, process, _Pid, Result} ->
+            Message = format( "Handler terminated with ~p", [Result] ),
+            Response = #{errorType => 'HandlerFailure',
+                errorMessage => Message,
+                stackTrace => []},
+            {unhandled, Response}
+    end.
+
+invoke_exec( Handler, Event, Context ) ->
+    try
+        case Handler:handle(jiffy:decode(Event, [return_maps]), Context ) of
+            ok -> succeed( "completed successfully" );
+            {ok, Result} -> succeed( Result );
+            {error, ErrResult} -> fail( ErrResult );
+            _Anything ->
+                %% if handler returns anything else, then it did not call
+                %% fail/succeed/retry, or return ok, so it is assumed to fail
+                fail( "did not invoke succeed/1,2 or fail/1,2 or retry/2,3" )
+        end
     catch
+        % both top level handler and we can can call success/fail
         throw:{?MODULE, result, JsonMap} -> {ok, JsonMap};
         throw:{?MODULE, failure, JsonMap} -> {handled, JsonMap};
         Type:Reason ->
             Trace = erlang:get_stacktrace(),
-            Message = iolist_to_binary(
-                        io_lib:format( "terminated with exception {~p, ~p}",
-                                       [Type, Reason] ) ),
+            Message = format( "terminated with exception {~p, ~p}", [Type, Reason] ),
             message_send( format( "~s with trace ~p", [Message, Trace] ) ),
             Response = #{errorType => 'HandlerFailure',
-                         errorMessage => Message,
-                         stackTrace => format("~p", [Trace])},
+                errorMessage => Message,
+                stackTrace => format("~p", [Trace])},
             {unhandled, Response}
     end.
 
@@ -300,17 +347,6 @@ invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
                           security_token = erllambda_util:to_list(Token),
                           expiration = undefined },
     application:set_env( erllambda, config, Config ).
-
-invoke_exec( Handler, Event, Context ) ->
-    case Handler:handle( Event, Context ) of
-        ok -> succeed( "completed successfully" );
-        {ok, Result} -> succeed( Result );
-        {error, Reason} -> fail( Reason );
-        _Anything ->
-            %% if handler returns anything else, then it did not call
-            %% fail/succeed/retry, or return ok, so it is assumed to fail
-            fail( "did not invoke succeed/1,2 or fail/1,2 or retry/2,3" )
-    end.
 
 %%============================================================================
 %% Internal Functions

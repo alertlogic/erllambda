@@ -7,8 +7,6 @@
 %% @copyright 2018 Alert Logic, Inc.
 %%%---------------------------------------------------------------------------
 -module(erllambda_error_handler).
--author('Anton Zaets <anton.zaets@alertlogic.com>').
--author('Evgeny Bob <ebob@alertlogic.com>').
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

@@ -2,13 +2,12 @@
 %% @doc erllambda_poller - AWS Lambda for Erlang Interface
 %%
 %% This module implmentes polling for event from AWS Lambda Runtime API
-%%
+%% module uses erlang:error/1 on purpose to kill VM asap.
+%% to let AWS Lambda clean it up. See Runtime API dociumentation.
 %%
 %% @copyright 2018 Alert Logic, Inc.
 %%%-------------------------------------------------------------------
 -module(erllambda_poller).
-
--author('Evgeny Bob <ebob@alertlogic.com>').
 
 -behaviour(gen_server).
 
@@ -151,6 +150,9 @@ handle(Event, Context) ->
     erllambda:message("I'm Erlang noob event ~p ~p", [Event, Context]),
     {ok, #{noob => pass}}.
 
+%%******************************************************************************
+%% Internal functions
+%%******************************************************************************
 invoke_next(#state{runtime_addr = Addr, aws_cfg = AwsCfg}) ->
     FullPath = binary_to_list(<<"http://", Addr/binary,
         "/", ?API_VERSION/binary,
@@ -159,12 +161,16 @@ invoke_next(#state{runtime_addr = Addr, aws_cfg = AwsCfg}) ->
     %% infinity due to container Freeze/thaw behaviour
     case request(FullPath, get, [], "", infinity, AwsCfg) of
         {ok, {{200, _}, Hdrs, Body}} ->
-            #{<<"x-amz-aws-request-id">> := AwsReqId} = MapHdrs = hdr2map(Hdrs),
+            MapHdrs = hdr2map(Hdrs),
+            AwsReqId = erllambda:get_aws_request_id(MapHdrs),
             set_context(AwsReqId),
-            MBody = jiffy:decode(Body, [return_maps]),
-            {ok, AwsReqId, MapHdrs, MBody};
+            {ok, AwsReqId, MapHdrs, Body};
+        {ok, {{Other, _}, _Hdrs, Body}} ->
+            % error from Runtime API
+            erllambda:message("Error from runtime API ~p ~p ", [Other, Body]),
+            erlang:error({Other, Body});
         {error, _} = Err ->
-            throw(Err)
+            erlang:error(Err)
     end.
 
 invoke_success(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
@@ -173,12 +179,15 @@ invoke_success(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
         (?INVOKE_REPLAY_SUCCESS_PATH(AwsReqId))/binary>>),
     erllambda:message("Invoke Success path ~p ~s", [os:system_time(millisecond), FullPath]),
     %% infinity due to container Freeze/thaw behaviour
-    case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
+    case request(FullPath, post, [], encode_body(Body), 1000, AwsCfg) of
         {ok, {{202, _}, _Hdrs, _Body}} ->
             ok;
+        {ok, {{Other, _}, _Hdrs, Body}} ->
+            % error from Runtime API
+            erllambda:message("Error form runtime API ~p ~p ", [Other, Body]),
+            erlang:error({Other, Body});
         {error, _} = Err ->
-            erllambda:message("Runtime replied badly for success ~p", [Err]),
-            throw(Err)
+            erlang:error(Err)
     end.
 
 invoke_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
@@ -190,9 +199,28 @@ invoke_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
     case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
         {ok, {{202, _}, _Hdrs, _Body}} ->
             ok;
+        {ok, {{Other, _}, _Hdrs, Body}} ->
+            % error from Runtime API
+            erllambda:message("Error form runtime API ~p ~p ", [Other, Body]),
+            erlang:error({Other, Body});
         {error, _} = Err ->
-            erllambda:message("Runtime replied badly for error ~p", [Err]),
-            throw(Err)
+            erlang:error(Err)
+    end.
+
+init_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, Body) ->
+    FullPath = binary_to_list(<<"http://", Addr/binary,
+        "/", ?API_VERSION/binary, ?INIT_ERROR_PATH/binary>>),
+    erllambda:message("Init Error path ~p ~s", [os:system_time(millisecond), FullPath]),
+    %% infinity due to container Freeze/thaw behaviour
+    case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
+        {ok, {{202, _}, _Hdrs, _Body}} ->
+            ok;
+        {ok, {{Other, _}, _Hdrs, Body}} ->
+            % error from Runtime API
+            erllambda:message("Error from runtime API ~p ~p ", [Other, Body]),
+            erlang:error({Other, Body});
+        {error, _} = Err ->
+            erlang:error(Err)
     end.
 
 request(URL, Method, Hdrs, Body, Timeout, undefined) ->

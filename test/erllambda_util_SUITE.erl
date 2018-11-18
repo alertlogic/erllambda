@@ -60,14 +60,16 @@ end_per_group( Group, Config ) ->
 
 init_per_testcase( Test, Config ) ->
     clear( proplists:get_value( group, Config ) ),
-    ?assertMatch( {ok, _}, application:ensure_all_started( erllambba ) ),
-    application:set_env( erllambba, '_test', Test ),
+    application:load( erllambda ),
+    application:set_env( erllambda, print_env, false ),
+    ?assertMatch( {ok, _}, application:ensure_all_started( erllambda ) ),
+    application:set_env( erllambda, '_test', Test ),
     Config.
 
 end_per_testcase( _Test, Config ) ->
     application:unset_env( erllambba, '_test' ),
-    ?assertEqual( ok, application:stop( erllambba ) ),
-    ?assertEqual( ok, application:unload( erllambba ) ),
+    ?assertEqual( ok, application:stop( erllambda ) ),
+    ?assertEqual( ok, application:unload( erllambda ) ),
     Config.
 
 
@@ -194,7 +196,7 @@ mock_lhttpc_request(
   Test, "http://169.254.168.254/latest/dynamic/instance-identity/document",
   get, _, <<>>, _Timeout, _Options )
   when Test =:= test_region_instancedoc; Test =:= test_accountid_instancedoc ->
-    Body = jsx:encode( #{devpayProductCodes => null,
+    Body = jiffy:encode( #{devpayProductCodes => null,
                          availabilityZone => <<"us-east-1d">>,
                          privateIp => <<"10.158.112.84">>,
                          version => <<"2010-08-31">>,
