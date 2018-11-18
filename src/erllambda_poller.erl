@@ -201,7 +201,7 @@ invoke_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
             ok;
         {ok, {{Other, _}, _Hdrs, Body}} ->
             % error from Runtime API
-            erllambda:message("Error form runtime API ~p ~p ", [Other, Body]),
+            erllambda:message("Error from runtime API ~p ~p ", [Other, Body]),
             erlang:error({Other, Body});
         {error, _} = Err ->
             erlang:error(Err)
