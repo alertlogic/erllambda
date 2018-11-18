@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+zippath=${1:-/nowhere/UNDEFINED}
+srcdir=${2:-/nowhere}
+
+rm -rf ${zippath}
+(cd ${srcdir} &&
+     zip --symlinks -q -r ${zippath} * \
+         -x \*.a \*.c \*.h \*.o \*.erl \*.hrl \*.xrl \*.yrl \*.asn1)
