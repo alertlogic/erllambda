@@ -1,159 +1,138 @@
-%%%-----------------------------------------------------------------------------
-%% @doc Validate basic operation
-%%
-%% Common Tests that verify the basic operation of defining a erllambda
-%% module, starting the application, and invoking it via the javascript
-%% works.
-%%
-%%
-%% @copyright 2018 Alert Logic, Inc.
-%%%-----------------------------------------------------------------------------
 -module(erllambda_SUITE).
--author('Paul Fisher <pfisher@alertlogic.com>').
-
-%% common test suite callbacks
--export([suite/0, all/0, groups/0]).
--export([init_per_suite/1, end_per_suite/1]).
--export([init_per_group/2, end_per_group/2]).
-
-%% just export all functions so we don't have to do each test individually
--compile([export_all]).
 
 -include_lib("common_test/include/ct.hrl").
--include_lib("eunit/include/eunit.hrl").
 
-
-%%******************************************************************************
-%% Test SUITE callbacks
-%%******************************************************************************
+%%--------------------------------------------------------------------
+%% @spec suite() -> Info
+%% Info = [tuple()]
+%% @end
+%%--------------------------------------------------------------------
 suite() ->
-    [
-     {timetrap, {seconds, (5 * 60)}}
-    ].
+    [{timetrap, {seconds, 30}}].
 
+%%--------------------------------------------------------------------
+%% @spec init_per_suite(Config0) ->
+%%     Config1 | {skip,Reason} | {skip_and_save,Reason,Config1}
+%% Config0 = Config1 = [tuple()]
+%% Reason = term()
+%% @end
+%%--------------------------------------------------------------------
+init_per_suite(Config) ->
+    {ok, _} = erllambda_aws_runtime:start(),
+    Port = erllambda_aws_runtime:http_port(),
+    os:putenv("AWS_LAMBDA_RUNTIME_API",
+              lists:flatten(io_lib:format("127.0.0.1:~w", [Port]))),
+    application:load(erllambda),
+    application:set_env(erllambda, handler_module, erllambda_fibonachi_handler),
+    application:set_env(erllambda, print_env, false),
+    {ok, _} = application:ensure_all_started(erllambda),
+    Config.
 
-all() ->
-    [
-     {group, tcp},
-     {group, unix}
-    ].
+%%--------------------------------------------------------------------
+%% @spec end_per_suite(Config0) -> term() | {save_config,Config1}
+%% Config0 = Config1 = [tuple()]
+%% @end
+%%--------------------------------------------------------------------
+end_per_suite(_Config) ->
+    application:stop(erllambda),
+    os:unsetenv("AWS_LAMBDA_RUNTIME_API"),
+    application:unload(erllambda),
+    ok = erllambda_aws_runtime:stop().
 
+%%--------------------------------------------------------------------
+%% @spec init_per_group(GroupName, Config0) ->
+%%               Config1 | {skip,Reason} | {skip_and_save,Reason,Config1}
+%% GroupName = atom()
+%% Config0 = Config1 = [tuple()]
+%% Reason = term()
+%% @end
+%%--------------------------------------------------------------------
+init_per_group(_GroupName, Config) ->
+    Config.
 
+%%--------------------------------------------------------------------
+%% @spec end_per_group(GroupName, Config0) ->
+%%               term() | {save_config,Config1}
+%% GroupName = atom()
+%% Config0 = Config1 = [tuple()]
+%% @end
+%%--------------------------------------------------------------------
+end_per_group(_GroupName, _Config) ->
+    ok.
+
+%%--------------------------------------------------------------------
+%% @spec init_per_testcase(TestCase, Config0) ->
+%%               Config1 | {skip,Reason} | {skip_and_save,Reason,Config1}
+%% TestCase = atom()
+%% Config0 = Config1 = [tuple()]
+%% Reason = term()
+%% @end
+%%--------------------------------------------------------------------
+init_per_testcase(_TestCase, Config) ->
+    Config.
+
+%%--------------------------------------------------------------------
+%% @spec end_per_testcase(TestCase, Config0) ->
+%%               term() | {save_config,Config1} | {fail,Reason}
+%% TestCase = atom()
+%% Config0 = Config1 = [tuple()]
+%% Reason = term()
+%% @end
+%%--------------------------------------------------------------------
+end_per_testcase(_TestCase, _Config) ->
+    ok.
+
+%%--------------------------------------------------------------------
+%% @spec groups() -> [Group]
+%% Group = {GroupName,Properties,GroupsAndTestCases}
+%% GroupName = atom()
+%% Properties = [parallel | sequence | Shuffle | {RepeatType,N}]
+%% GroupsAndTestCases = [Group | {group,GroupName} | TestCase]
+%% TestCase = atom()
+%% Shuffle = shuffle | {shuffle,{integer(),integer(),integer()}}
+%% RepeatType = repeat | repeat_until_all_ok | repeat_until_all_fail |
+%%              repeat_until_any_ok | repeat_until_any_fail
+%% N = integer() | forever
+%% @end
+%%--------------------------------------------------------------------
 groups() ->
-    [
-     {tcp, [], tests()},
-     {unix, [], tests()}
-    ].
+    [].
 
-tests() ->
-    [
-     test_verify,
-     test_process,
-     test_success,
-     test_success_ok,
-     test_fail,
-     test_fail_error,
-     test_except_error_undef,
-     test_unknown_handler,
-     test_invalid_request,
-     test_invalid_request_no_event,
-     test_invalid_request_no_context,
-     test_socket_file
-    ].
+%%--------------------------------------------------------------------
+%% @spec all() -> GroupsAndTestCases | {skip,Reason}
+%% GroupsAndTestCases = [{group,GroupName} | TestCase]
+%% GroupName = atom()
+%% TestCase = atom()
+%% Reason = term()
+%% @end
+%%--------------------------------------------------------------------
+all() ->
+    [test_fibonachi].
 
-init_per_suite( Config ) ->
-    [{handler, "erllambda_test"} | Config].
+%%%===================================================================
+%%% TestCases
+%%%===================================================================
 
-end_per_suite( Config ) -> Config.
-    
+%%--------------------------------------------------------------------
+%% @spec TestCase() -> Info
+%% Info = [tuple()]
+%% @end
+%%--------------------------------------------------------------------
+test_fibonachi() ->
+    [].
 
-init_per_group( Transport, Config ) ->
-    erllambda_ct:setup_service( [{transport, Transport} | Config] ).
-     
-end_per_group( _Transport, Config ) ->
-    erllambda_ct:cleanup_service( Config ).
-
-
-%%******************************************************************************
-%% Test functions
-%%******************************************************************************
-test_verify( Config ) ->
-    ?assertMatch( {ok, undefined}, erllambda_ct:verify( Config ) ).
-
-test_process( Config ) ->
-    Context = #{<<"AWS_ACCESS_KEY_ID">> => <<"ID">>,
-                <<"AWS_SECRET_ACCESS_KEY">> => <<"KEY">>,
-                <<"AWS_SECURITY_TOKEN">> => <<"TOKEN">>},
-    ?assertMatch( {ok, #{<<"success">> := _}},
-                  erllambda_ct:process( #{result => ok}, Context, Config ) ).
-
-test_success( Config ) ->
-    Message = <<"wild success">>,
-    Event = #{test => ?FUNCTION_NAME, message => Message},
-    ?assertMatch( {ok, #{<<"success">> := Message}},
-                  erllambda_ct:process( Event, #{}, Config ) ).
-
-test_success_ok( Config ) ->
-    Message = <<"wild success">>,
-    Event = #{test => ?FUNCTION_NAME, message => Message},
-    ?assertMatch( {ok, #{<<"success">> := Message}},
-                  erllambda_ct:process( Event, #{}, Config ) ).
-
-test_fail( Config ) ->
-    Message = <<"failure message">>,
-    Event = #{test => ?FUNCTION_NAME, message => Message},
-    ?assertMatch(
-       {error, {response, #{<<"errorType">> := <<"HandlerFailure">>,
-                            <<"errorMessage">> := Message}}},
-                  erllambda_ct:process( Event, #{}, Config ) ).
-
-test_fail_error( Config ) ->
-    Message = <<"failure message">>,
-    Event = #{test => ?FUNCTION_NAME, message => Message},
-    ?assertMatch(
-       {error, {response, #{<<"errorType">> := <<"HandlerFailure">>,
-                            <<"errorMessage">> := Message}}},
-                  erllambda_ct:process( Event, #{}, Config ) ).
-
-test_except_error_undef( Config ) ->
-    Message = <<"terminated with exception {error,undef}">>,
-    Event = #{test => ?FUNCTION_NAME},
-    ?assertMatch(
-       {error, {response, #{<<"errorType">> := <<"HandlerFailure">>,
-                            <<"errorMessage">> := Message}}},
-       erllambda_ct:process( Event, #{}, Config ) ).
-
-test_unknown_handler( Config ) ->
-    Transport = proplists:get_value( transport, Config ),
-    Options = [{skip_module_check, true}, {transport, Transport}],
-    EeeConfig = eee_ct:setup( erllambda_wtf, Options ),
-    ?assertMatch(
-       {error, {response, #{<<"errorType">> := <<"UnknownHandler">>}}},
-       eee_ct:verify( EeeConfig ) ).
-
-test_invalid_request( Config ) ->
-    Body = <<"WAT?">>,
-    ?assertMatch(
-       {error, {response, #{<<"errorType">> := <<"InvalidRequest">>}}},
-       invalid_request( Body, proplists:get_value( eee_ct, Config ) ) ).
-
-test_invalid_request_no_event( Config ) ->
-    Body = jiffy:encode( #{context => #{}} ),
-    ?assertMatch(
-       {error, {response, #{<<"errorType">> := <<"InvalidRequest">>}}},
-       invalid_request( Body, proplists:get_value( eee_ct, Config ) ) ).
-
-test_invalid_request_no_context( Config ) ->
-    Body = jiffy:encode( #{event => #{}} ),
-    ?assertMatch(
-       {error, {response, #{<<"errorType">> := <<"InvalidRequest">>}}},
-       invalid_request( Body, proplists:get_value( eee_ct, Config ) ) ).
-
-
-%%******************************************************************************
-%% Internal Functions
-%%******************************************************************************
-invalid_request( Body, #{transport := {Transport, _}} = Config ) ->
-    Uri = eee_ct:uri( [], Config ),
-    Headers = eee_ct:headers( Transport ),
-    eee_ct:common_result( eee_ct:invoke( Uri, Headers, Body, Config ) ).
+%%--------------------------------------------------------------------
+%% @spec TestCase(Config0) ->
+%%               ok | exit() | {skip,Reason} | {comment,Comment} |
+%%               {save_config,Config1} | {skip_and_save,Reason,Config1}
+%% Config0 = Config1 = [tuple()]
+%% Reason = term()
+%% Comment = term()
+%% @end
+%%--------------------------------------------------------------------
+test_fibonachi(_Config) ->
+    {ok, #{<<"sequence">> := [0, 1, 1, 2, 3, 5]}} =
+        lists:foldl(
+          fun(_, {ok, Params}) -> erllambda_aws_runtime:call(Params) end,
+          {ok, #{<<"sequence">> => []}},
+          lists:seq(0, 5)).

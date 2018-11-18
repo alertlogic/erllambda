@@ -13,18 +13,17 @@
    ]},
   {env,
    [
+    %% Print Env during Init or not
+    {print_env, true},
     %% execution AWS region, typically only defined by some controlling
     %% framework.
     {region, undefined},
-
     %% execution AWS accountid, typically only defined by some controlling
     %% framework.
     {accountid, undefined},
-
     %% execution environ (typically USER or base stack name), typically
     %% only defined by some controlling framework.
     {environ, undefined},
-
     %% predefined erlcloud config that is set by some controlling
     %% framework, so that client applications can get valid base config
     %% when it is otherwise not available via erlcloud_aws:auto_config/0.

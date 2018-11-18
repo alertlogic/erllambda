@@ -8,8 +8,6 @@
 %% @copyright 2018 Alert Logic, Inc.
 %%%---------------------------------------------------------------------------
 -module(erllambda_sup).
--author('Paul Fisher <pfisher@alertlogic.com>').
--author('Evgeny Bob <ebob@alertlogic.com>').
 
 -behaviour(supervisor).
 
@@ -35,7 +33,8 @@ init([]) ->
         erllambda_poller:spec(),
         server_spec( erllambda_config_srv, [] )
     ],
-    {ok, {{one_for_one, 5, 10}, Children}}.
+    % in AWS Lambda environment it's better to die fast
+    {ok, {{one_for_one, 1, 5}, Children}}.
 
 server_spec( Module, Args ) ->
     #{id => Module,
