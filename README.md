@@ -59,9 +59,6 @@ The `erllambda` application owned by the
 
 - Finish Tutorials
 - more common tests
-- get_remaining_ms API
-- add MIX support
-- harden error reporting 
 - support Runtime Init error
 - remote GIT links in rebar and make it https
 - make public
