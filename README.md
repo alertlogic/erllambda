@@ -10,7 +10,7 @@ The `erllambda` library provides all functionality needed to build and
 deploy fully functional [AWS Lambda](https://aws.amazon.com/lambda/)
 functions, written entirely in Erlang.
 
-Erlang Lambda functions implement a simple one function, behavior:
+Erlang Lambda functions implement a simple two function behavior:
 
 ```
 -module(hello_lambda).
@@ -21,7 +21,7 @@ Erlang Lambda functions implement a simple one function, behavior:
 
 -spec init( Context :: map() ) -> ok | none().
 init( Context ) ->
-    erllambda:succeed( "Hello BYOL!" ).
+    erllambda:succeed( "Hello AWS Runtime!" ).
     
 -spec handle( Event :: map(), Context :: map() ) -> {ok, Body} | {error, ErrorBody}.
 handle( Event, Context ) ->
@@ -52,19 +52,9 @@ More detailed information about developing Lambda functions using
 
 # Ownership
 
-The `erllambda` application owned by the
-[Data Processing Team](https://alertlogic.atlassian.net/wiki/display/DPT).
-
-## Roadmap / TODO
-
-- Finish Tutorials
-- more common tests
-- support Runtime Init error
-- remote GIT links in rebar and make it https
-- make public
-- add travis when public
-- Erlang 21.X
-
+The `erllambda` application and it's supporting libraries are primarily owned by
+   - [motobob](https://github.com/motobob)
+   - [velimir0xff](https://github.com/velimir0xff)  
 
 # Dependencies
 
@@ -73,6 +63,16 @@ The `erllambda` application is built using
 automatically pulled in when `erllambda` is used in other projects
 `rebar.config`.
 
+As part of the Erlang/Elixir package for AWS Lambda following are used:
+ - [`erllambda`](https://github.com/alertlogic/erllambda) - this repo. Core intergation point with AWS Lambda Runtime API
+ - [`rebar3_erllambda`](https://github.com/alertlogic/rebar3_erllambda) - `rebar3`/relx plugin to
+ build & package your application in Erlang
+ - [`erllambda_docker`](https://github.com/alertlogic/erllambda_docker) - docker images 
+ for packaging your application with proper native libraries set.
+ - [`mix_erllambda`](https://github.com/alertlogic/mix_erllambda) - `mix`/`distillery` plugin to
+    build & package your application in Elixir
+ - [`erllambda_example`](https://github.com/alertlogic/erllambda_example) - basic Erlang generated example
+ - [`erllambda_elixir_example`](https://github.com/alertlogic/erllambda_elixir_example) - basic Elixir generated example
 
 # How to report defects
 
