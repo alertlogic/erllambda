@@ -89,6 +89,7 @@ handler_module() ->
 init([]) ->
     Addr = runtime_address(),
     Handler = handler_module(),
+    print_env(),
     erllambda:message("initializing ~p for handler ~p", [?MODULE, Handler]),
     {ok, #state{
           runtime_addr = Addr,
@@ -252,6 +253,15 @@ month(9) -> 'Sep';
 month(10) -> 'Oct';
 month(11) -> 'Nov';
 month(12) -> 'Dec'.
+
+print_env() ->
+    case application:get_env(erllambda, print_env, false) of
+        true ->
+            EnvWihtoutSecret = erllambda_poller:hide_secret(erllambda_poller:os_env2map()),
+            erllambda:message("Erllambda Starting at ~p with Env ~p",
+                [os:system_time(millisecond), EnvWihtoutSecret]);
+        _ -> ok
+    end.
 
 os_env2map() ->
     maps:from_list(lists:map(

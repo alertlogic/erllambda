@@ -31,6 +31,7 @@ start_link() ->
 init([]) ->
     Children = [
         erllambda_poller:spec(),
+        server_spec( erllambda_error_handler, []),
         server_spec( erllambda_config_srv, [] )
     ],
     % in AWS Lambda environment it's better to die fast

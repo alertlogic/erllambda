@@ -19,25 +19,11 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
+    Sup = erllambda_sup:start_link(),
     error_logger:tty(false),
     error_logger:add_report_handler(erllambda_error_handler),
-    print_env(),
-    erllambda_sup:start_link().
+    Sup.
 
 %%--------------------------------------------------------------------
 stop(_State) ->
     ok.
-
-
-%%====================================================================
-%% Internal functions
-%%====================================================================
-    
-print_env() ->
-    case application:get_env(erllambda, print_env, false) of
-        true ->
-            EnvWihtoutSecret = erllambda_poller:hide_secret(erllambda_poller:os_env2map()),
-            erllambda:message("Erllambda Starting at ~p with Env ~p",
-                [os:system_time(millisecond), EnvWihtoutSecret]);
-        _ -> ok
-    end.
