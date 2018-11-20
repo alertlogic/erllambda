@@ -12,7 +12,8 @@
 init(#{method := <<"GET">>} = Req0, Opts) ->
     {Id, Item} = erllambda_aws_runtime_srv:next(),
     Headers = #{<<"lambda-runtime-aws-request-id">> => Id,
-                <<"lambda-runtime-deadline-ms">> => os:system_time(millisecond) + 10000,
+                <<"lambda-runtime-deadline-ms">> =>
+                    integer_to_binary(os:system_time(millisecond) + 10000),
                 <<"content-type">> => <<"application/json">>},
     Response = jiffy:encode(Item),
     Req = cowboy_req:reply(200, Headers, Response, Req0),
