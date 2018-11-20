@@ -36,6 +36,9 @@
 %% ------------------------------------------------------------------
 
 start_link() ->
+    error_logger:tty(false),
+    % add us to error logger
+    error_logger:add_report_handler(erllambda_error_handler),
     gen_event:start_link({local, ?MODULE}).
 
 %% ------------------------------------------------------------------
@@ -79,6 +82,9 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+
+output(Format, []) ->
+    output("%s", [Format]);
 output(Format, Data) ->
     io:fwrite([format(Format, Data), "\n"]).
 
