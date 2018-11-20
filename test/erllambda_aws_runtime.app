@@ -10,7 +10,7 @@
   {modules, []},
   {mod, {erllambda_aws_runtime, []}},
   {start_phases, [{http_server, []}]},
-  {env, [{port, 9999}]}
+  {env, [{port, 0}]}
  ]
 }.
 

@@ -28,7 +28,7 @@ stop() ->
 
 %% @doc Port on which http server listens for incoming requests
 http_port() ->
-    {ok, Port} = application:get_env(?MODULE, port),
+    {_, Port} = ranch_server:get_addr(?MODULE),
     Port.
 
 %% @doc synchronously execute function and return result
@@ -80,8 +80,7 @@ start_phase(http_server, _StartType, _PhaseArgs) ->
               erllambda_aws_runtime_response_http, []}],
     Dispatch = cowboy_router:compile([{HostMatch, Paths}]),
     Env = #{env => #{dispatch => Dispatch}},
-    Port = http_port(),
-    TransportOpts = [{port, Port}],
+    TransportOpts = transport_opts(),
     {ok, _} = cowboy:start_clear(?MODULE, TransportOpts, Env),
     ok.
 
@@ -158,3 +157,6 @@ init([]) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+transport_opts() ->
+    {ok, Port} = application:get_env(?MODULE, port),
+    [{port, Port}].
