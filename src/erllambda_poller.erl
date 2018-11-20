@@ -15,9 +15,7 @@
     spec/0,
     start_link/0,
     runtime_address/0,
-    handler_module/0,
-    os_env2map/0,
-    hide_secret/1
+    handler_module/0
 ]).
 
 -export([handle/2]).
@@ -89,7 +87,7 @@ handler_module() ->
 init([]) ->
     Addr = runtime_address(),
     Handler = handler_module(),
-    print_env(),
+    erllambda:print_env(),
     erllambda:message("initializing ~p for handler ~p", [?MODULE, Handler]),
     {ok, #state{
           runtime_addr = Addr,
@@ -115,19 +113,17 @@ handle_info(poll, #state{runtime_addr = undefined} = State) ->
 handle_info(poll, #state{handler = Handler} = State) ->
     %% SYNC to RUNTIME
     %% container freeze/thaw happens here
-    {ok, ReqId, MHdrs, Body} = invoke_next(State),
+    {ok, ReqId, Hdrs, Body} = invoke_next(State),
     %% container thaw happens here
-    OSMap = os_env2map(),
     erllambda:message("Next returns, in invoke ~p", [os:system_time(millisecond)]),
-    case erllambda:invoke(Handler, Body, maps:merge(OSMap, MHdrs)) of
+    case erllambda:invoke(Handler, Body, Hdrs) of
         {ok, Json} ->
-            invoke_success(State, ReqId, Json),
-            {noreply, State#state{timer_ref = erlang:send_after(0, self(), poll)}};
+            invoke_success(State, ReqId, Json);
         {Error, ErrJson}
-                when Error == handled orelse Error == unhandled->
-            invoke_error(State, ReqId, ErrJson),
-            {noreply, State#state{timer_ref = erlang:send_after(0, self(), poll)}}
-    end;
+                when Error == handled orelse Error == unhandled ->
+            invoke_error(State, ReqId, ErrJson)
+    end,
+    {noreply, State#state{timer_ref = erlang:send_after(0, self(), poll)}};
 handle_info(Info, State) ->
     erllambda:message("Unknown info: ~p", [Info]),
     {noreply, State}.
@@ -162,10 +158,9 @@ invoke_next(#state{runtime_addr = Addr, aws_cfg = AwsCfg}) ->
     %% infinity due to container Freeze/thaw behaviour
     case request(FullPath, get, [], "", infinity, AwsCfg) of
         {ok, {{200, _}, Hdrs, Body}} ->
-            MapHdrs = hdr2map(Hdrs),
-            AwsReqId = erllambda:get_aws_request_id(MapHdrs),
+            AwsReqId = erllambda:get_aws_request_id(Hdrs),
             set_context(AwsReqId),
-            {ok, AwsReqId, MapHdrs, Body};
+            {ok, AwsReqId, Hdrs, Body};
         {ok, {{Other, _}, _Hdrs, Body}} ->
             % error from Runtime API
             erllambda:message("Error from runtime API ~p ~p ", [Other, Body]),
@@ -180,7 +175,7 @@ invoke_success(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
         (?INVOKE_REPLAY_SUCCESS_PATH(AwsReqId))/binary>>),
     erllambda:message("Invoke Success path ~p ~s", [os:system_time(millisecond), FullPath]),
     %% infinity due to container Freeze/thaw behaviour
-    case request(FullPath, post, [], encode_body(Body), 1000, AwsCfg) of
+    case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
         {ok, {{202, _}, _Hdrs, _Body}} ->
             ok;
         {ok, {{Other, _}, _Hdrs, Body}} ->
@@ -253,30 +248,3 @@ month(9) -> 'Sep';
 month(10) -> 'Oct';
 month(11) -> 'Nov';
 month(12) -> 'Dec'.
-
-print_env() ->
-    case application:get_env(erllambda, print_env, false) of
-        true ->
-            EnvWihtoutSecret = erllambda_poller:hide_secret(erllambda_poller:os_env2map()),
-            erllambda:message("Erllambda Starting at ~p with Env ~p",
-                [os:system_time(millisecond), EnvWihtoutSecret]);
-        _ -> ok
-    end.
-
-os_env2map() ->
-    maps:from_list(lists:map(
-        fun(S) ->
-            [K, V] = string:split(S, "="),
-            {list_to_binary(K), list_to_binary(V)}
-        end,
-        os:getenv()
-    )).
-
-hide_secret(#{<<"AWS_SECRET_ACCESS_KEY">> := _} = Map) ->
-    maps:without([<<"AWS_SECRET_ACCESS_KEY">>], Map);
-hide_secret(Map) ->
-    Map.
-
-
-hdr2map(Hdrs) ->
-    maps:from_list([{list_to_binary(K), list_to_binary(V)} || {K,V} <- Hdrs]).

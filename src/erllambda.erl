@@ -20,11 +20,12 @@
 -export([metric/1, metric/2, metric/3, metric/4]).
 -export([get_remaining_ms/1, get_aws_request_id/1]).
 -export([region/0, environ/0, accountid/0, config/0, config/1, config/2]).
+-export([print_env/0]).
 
 %% private - handler invocation entry point, used by http api
 -export([invoke/3]).
 
--include("erllambda.hrl").
+-include("include/erllambda.hrl").
 -include_lib("erlcloud/include/erlcloud_aws.hrl").
 
 -ifdef(TEST).
@@ -94,8 +95,7 @@ message( Message ) ->
 %% and then ensure it is output in the log for the lambda invocation.
 %%
 message( Format, Values ) ->
-    Message = format( Format, Values ),
-    message_send( Message ).
+    message_send( Format, Values ).
 
 
 %%%---------------------------------------------------------------------------
@@ -122,8 +122,8 @@ message_ctx( ReqId, Message ) ->
 message_ctx( Ctx, Format, Values ) when is_map (Ctx) ->
     message_ctx(get_aws_request_id(Ctx), Format, Values);
 message_ctx( ReqId, Format, Values ) when is_binary(ReqId) ->
-    Message = format_reqid( ReqId, Format, Values ),
-    message_send( Message ).
+    message_send("[" ?AL_CTX_SD_ID " aid=\"~s\"] " ++ Format,
+        [ReqId  | Values] ).
 
 -spec metric(MetricName :: string(), MetricValue :: integer(),
              Type :: string(), Tags :: list()) -> ok.
@@ -186,20 +186,18 @@ get_remaining_ms(#{<<"lambda-runtime-deadline-ms">> := Deadline}) ->
 %%%---------------------------------------------------------------------------
 -spec get_aws_request_id(map()) -> binary() | undefined.
 %%%---------------------------------------------------------------------------
-%% @doc The time remaining in our invoke
+%% @doc Extract the request Id
 %%
 %% This function will return the Req ID of the invoke
-%% contains several alrenatives from new to old
-%% to support backward comatibility
+%% contains several alternatives from new to old
+%% to support backward compatibility
 %%
-get_aws_request_id(#{<<"awsRequestId">> := ReqId}) ->
-    ReqId;
-get_aws_request_id(#{<<"lambda-runtime-aws-request-id">> := ReqId}) ->
-    ReqId;
-get_aws_request_id(#{<<"x-amz-aws-request-id">> := ReqId}) ->
-    ReqId;
-get_aws_request_id(#{"x-amzn-requestid" := ReqId}) ->
-    ReqId.
+get_aws_request_id(Hdrs) when is_list(Hdrs) ->
+    get_aws_request_id(hdr2map(Hdrs));
+get_aws_request_id(#{<<"awsRequestId">> := ReqId}) -> ReqId;
+get_aws_request_id(#{<<"lambda-runtime-aws-request-id">> := ReqId}) -> ReqId;
+get_aws_request_id(#{<<"x-amz-aws-request-id">> := ReqId}) -> ReqId;
+get_aws_request_id(#{<<"x-amzn-requestid">> := ReqId}) -> ReqId.
 
 %%%---------------------------------------------------------------------------
 -spec region() -> binary().
@@ -274,20 +272,23 @@ accountid() ->
 
 %%%---------------------------------------------------------------------------
 -spec invoke( Handler :: module(), Event :: binary(),
-              Context :: map() ) -> {ok, term()} | {handled|unhandled, term()}.
+              EventHdrs :: list() ) -> {ok, term()} | {handled|unhandled, term()}.
 %%%---------------------------------------------------------------------------
 %%
 %%
-invoke( Handler, Event, Context ) ->
+invoke( Handler, Event, EventHdrs )  ->
     application:set_env( erllambda, handler, Handler ),
-    invoke_credentials( Context, application:get_env( erllambda, config )),
-    Parent = self (),
+    Parent = self(),
     InvokeFun =
         fun () ->
+            % construct the contexts on the fly
+            % binaries all the way down
+            Context = maps:merge(os_env2map(), hdr2map(EventHdrs)),
+            invoke_credentials( Context, application:get_env( erllambda, config )),
             Res = invoke_exec(Handler, Event, Context),
             Parent ! {handle, Res}
         end,
-    % each handler should leave and dies in it's own process
+    % each handler should leave and die in it's own process
     {_, MonRef} = erlang:spawn_monitor( InvokeFun ),
     receive
         {handle, Res} ->
@@ -351,10 +352,6 @@ invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
 %%============================================================================
 %% Internal Functions
 %%============================================================================
-format_reqid( ReqId, Format, Values ) ->
-    format( "[" ?AL_CTX_SD_ID " aid=\"~s\"] " ++ Format,
-            [ReqId  | Values] ).
-
 format( Format, Values ) ->
     iolist_to_binary( io_lib:format( Format, Values ) ).
 
@@ -371,6 +368,35 @@ complete( Type, Response ) ->
 
 message_send( Message ) ->
     error_logger:info_msg( "~s", [Message] ).
+
+message_send( Format , Values) ->
+    error_logger:info_msg( Format, Values ).
+
+print_env() ->
+    case application:get_env(erllambda, print_env, false) of
+        true ->
+            EnvWihtoutSecret = hide_secret(os_env2map()),
+            erllambda:message("Erllambda Starting at ~p with Env ~p",
+                [os:system_time(millisecond), EnvWihtoutSecret]);
+        _ -> ok
+    end.
+
+os_env2map() ->
+    maps:from_list(lists:map(
+        fun(S) ->
+            [K, V] = string:split(S, "="),
+            {list_to_binary(K), list_to_binary(V)}
+        end,
+        os:getenv()
+    )).
+
+hide_secret(#{<<"AWS_SECRET_ACCESS_KEY">> := _} = Map) ->
+    maps:without([<<"AWS_SECRET_ACCESS_KEY">>], Map);
+hide_secret(Map) ->
+    Map.
+
+hdr2map(Hdrs) ->
+    maps:from_list([{list_to_binary(K), list_to_binary(V)} || {K, V} <- Hdrs]).
 
 %%====================================================================
 %% Test Functions
