@@ -33,7 +33,7 @@
     code_change/3
 ]).
 
-% BYOL API version
+% Runtime API version
 -define(API_VERSION, <<"2018-06-01">>).
 -define(INVOKE_NEXT_PATH, <<"/runtime/invocation/next">>).
 -define(INVOKE_REPLAY_SUCCESS_PATH(ReqId), <<"/runtime/invocation/",ReqId/binary, "/response">>).
@@ -108,7 +108,7 @@ handle_cast(Info, State) ->
 
 %% @private
 handle_info(poll, #state{runtime_addr = undefined} = State) ->
-    erllambda:message("Runtime address not set - not BYOL?"),
+    erllambda:message("Runtime API address not set - not in AWS?"),
     {noreply, State};
 handle_info(poll, #state{handler = Handler} = State) ->
     %% SYNC to RUNTIME

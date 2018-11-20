@@ -1,6 +1,6 @@
 {application, erllambda_aws_runtime,
  [
-  {description, "test AWS BYOL runtime."},
+  {description, "test AWS Lambda Runtime API"},
   {vsn, "0.1"},
   {applications,
    [kernel,

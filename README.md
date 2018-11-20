@@ -30,13 +30,13 @@ handle( Event, Context ) ->
 
 There are really two ways to get started.  First you can checkout and review
 the
-[`erllambda_example`](https://github.com/alertlogic/erllambda_example)
+[`erllambda_example`](https://github.com/alertlogic/erllambda_example/blob/master/README.md)
 project.  This is a complete working AWS Lambda written in Erlang, with the
 goal of demonstrating the capabilities available as part of the framework,
 and how to write Lambda functions for different purposes in AWS.
 
 The second path is to use the
-[`rebar3_erllambda`](https://github.com/alertlogic/rebar3_erllambda)
+[`rebar3_erllambda`](https://github.com/alertlogic/rebar3_erllambda/blob/master/README.md)
 plugin for `rebar3`.  This will produce a fully working `erllambda` project
 that can be used as a starting point for any new development.  This plugin
 also implements additional `rebar3 erllambda zip` building and AWS Lambda
@@ -53,32 +53,111 @@ More detailed information about developing Lambda functions using
 # Ownership
 
 The `erllambda` application and it's supporting libraries are primarily owned by
-   - [motobob](https://github.com/motobob)
-   - [velimir0xff](https://github.com/velimir0xff)  
+[motobob](https://github.com/motobob) and [velimir0xff](https://github.com/velimir0xff)  
 
 # Dependencies
 
-The `erllambda` application is built using
-[`rebar3`](http://www.rebar3.org), and all other dependencies are
-automatically pulled in when `erllambda` is used in other projects
+The `erllambda` application is built using [`rebar3`](http://www.rebar3.org), 
+and all other dependencies are automatically pulled in when `erllambda` is used in other projects
 `rebar.config`.
 
 As part of the Erlang/Elixir package for AWS Lambda following are used:
- - [`erllambda`](https://github.com/alertlogic/erllambda) - this repo. Core intergation point with AWS Lambda Runtime API
- - [`rebar3_erllambda`](https://github.com/alertlogic/rebar3_erllambda) - `rebar3`/relx plugin to
- build & package your application in Erlang
- - [`erllambda_docker`](https://github.com/alertlogic/erllambda_docker) - docker images 
- for packaging your application with proper native libraries set.
- - [`mix_erllambda`](https://github.com/alertlogic/mix_erllambda) - `mix`/`distillery` plugin to
-    build & package your application in Elixir
- - [`erllambda_example`](https://github.com/alertlogic/erllambda_example) - basic Erlang generated example
- - [`erllambda_elixir_example`](https://github.com/alertlogic/erllambda_elixir_example) - basic Elixir generated example
+ - [`erllambda`](https://github.com/alertlogic/erllambda) - this repo. 
+  Core integration point with AWS Lambda Runtime API
+ - [`rebar3_erllambda`](https://github.com/alertlogic/rebar3_erllambda) - 
+  `rebar3`/`relx` plugin to build & package your application in Erlang
+ - [`erllambda_docker`](https://github.com/alertlogic/erllambda_docker) - docker images.
+  Used for packaging your application with proper native libraries set.
+ - [`mix_erllambda`](https://github.com/alertlogic/mix_erllambda) - 
+  `mix`/`distillery` plugin to build & package your application in Elixir
+ - [`erllambda_example`](https://github.com/alertlogic/erllambda_example) - 
+  basic Erlang generated example
+ - [`erllambda_elixir_example`](https://github.com/alertlogic/erllambda_elixir_example) - 
+  basic Elixir generated example
 
-# How to report defects
 
-If you encounter an problem, or simply have a question about using this
-repo, please submit a
-[github issue](https://github.com/alertlogic/erllambda/issues).
+## Initial setup, compilation and testing
+
+*TLDR;* as long as your basic Erlang environment is setup, getting started
+developing `erllambda` should be as easy as forking the repo, and then:
+
+```
+git clone git@github.com:${USER}/erllambda.git
+cd erllambda
+git remote add upstream git@github.com:alertlogic/erllambda.git
+rebar3 compile 
+rebar3 ct
+rebar3 erllambda zip
+```
+
+## Packaging and Deployment
+
+There are two key points about running Erlang AWS Lambda functions:
+
+### OpenSSL version
+**Important notice**: at this moment AWS Lambda native runtime has `openssl 1.0.1k` 
+while latest linux systems have `1.0.2` or even `1.1.1.`. 
+See [AWS Lambda](https://docs.aws.amazon.com/lambda/latest/dg/current-supported-versions.html)
+
+To be able to run Erlang Lambda functions in AWS Lambda it is vital to package
+your SW with Erlang built against openssl `1.0.1`. 
+You will want to setup DockerMachine and utilize the
+[erllambda_docker](https://github.com/alertlogic/erllambda_docker)
+repo for this purpose. This will allow you to perform release builds for `erllambda` based
+components directly from the command line.
+
+Users can have their own Erlang dockers and have those with statically linked preferred openssl versions. 
+However statically linking for base libraries is discouraged. 
+
+### Lambda Memory Size
+
+Current testing has shown that it does not make sense to run Erlang 
+on AWS Lambda functions with less then 256MB RAM.
+Having 512-1024MB is optimal for most of the use cases.
+
+### Basic Deployment
+
+See [Erllambda Example](https://github.com/alertlogic/erllambda_example) for step by step procedure to deploy your Lambda.
+but it basically boils down to following steps:
+- compile and build a prod profile release of your application.
+
+```
+rebar3 erllambda zip
+```
+
+- create your AWS Lambda function 
+
+```
+aws --profile default --region <region> \ 
+ lambda create-function \
+ --function-name <your_function> \
+ --memory-size 1024 \
+ --handler <your_function_module_name> \
+ --zip-file fileb://_build/prod/<your_function>-0.0.0.zip \ 
+ --runtime provided \
+ --role <role-arn>
+```
+
+- or update your previously deployed AWS Lambda function
+
+```
+aws --profile default --region <region> \ 
+ lambda update-function-code /
+ --function-name <your_function> \
+ --zip-file fileb://_build/prod/<your_function>-0.0.0.zip
+```
+
+- and invoke it
+
+```
+aws --profile default --region <region> \
+ lambda invoke  --function-name <your_function> \
+  --log-type Tail \
+  --payload '{"msg": "hello"}' \
+  outputfile.txt
+```
+
+It is however recommended to use CloudFormation based approach described in `rebar3_erllambda`
 
 
 # How to contribute
@@ -98,35 +177,11 @@ common tests run.  Please ensure that your contribution always adds to the
 coverage percentage, and does not decrease it.
 
 
-## Initial setup, compilation and testing
+# How to report defects
 
-*TLDR;* as long as your basic environment is setup, getting started
-developing `erllambda` should be as easy as forking the repo, and then:
+If you encounter an problem, or simply have a question about using this
+repo, please submit a
+[github issue](https://github.com/alertlogic/erllambda/issues).
 
-```
-git clone git@github.com:${USER}/erllambda.git
-cd erllambda
-git remote add upstream git@github.com:alertlogic/erllambda.git
-rebar3 compile 
-rebar3 ct
-```
-
-## Packaging and Deployment
-In addition, if you are developing on a non-linux system, you will want to
-setup DockerMachine and utilize the
-[erllambda_docker](https://github.com/alertlogic/erllambda_docker)
-repo. This will allow you to perform release builds for `erllambda` based
-components directly from the command line first by deploying your personal
-stack:
-
-```
-dsh make stack-create
-```
-
-and then subsequently updating the function:
-
-```
-dsh make function-update
-```
 
 <!--- vim: sw=4 et ts=4 -->

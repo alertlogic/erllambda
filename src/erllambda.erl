@@ -311,7 +311,7 @@ invoke_exec( Handler, Event, Context ) ->
             _Anything ->
                 %% if handler returns anything else, then it did not call
                 %% fail/succeed/retry, or return ok, so it is assumed to fail
-                fail( "did not invoke succeed/1,2 or fail/1,2 or retry/2,3" )
+                fail( "did not invoke succeed/1,2 or fail/1,2" )
         end
     catch
         % both top level handler and we can can call success/fail
