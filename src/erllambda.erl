@@ -289,7 +289,8 @@ invoke( Handler, Event, EventHdrs )  ->
             Parent ! {handle, Res}
         end,
     % each handler should leave and die in it's own process
-    {_, MonRef} = erlang:spawn_monitor( InvokeFun ),
+    Opts = application:get_env(erllambda, handler_spawn_opts, []),
+    {_, MonRef} = erlang:spawn_opt( InvokeFun , [monitor | Opts]),
     receive
         {handle, Res} ->
             erlang:demonitor(MonRef, [flush, info]),
