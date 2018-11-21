@@ -193,7 +193,7 @@ mock_lhttpc_request( Uri, Method, Headers, Body, Timeout, Options ) ->
     mock_lhttpc_request( Test, Uri, Method, Headers, Body, Timeout, Options ).
 
 mock_lhttpc_request(
-  Test, "http://169.254.168.254/latest/dynamic/instance-identity/document",
+  Test, "http://169.254.169.254/latest/dynamic/instance-identity/document",
   get, _, <<>>, _Timeout, _Options )
   when Test =:= test_region_instancedoc; Test =:= test_accountid_instancedoc ->
     Body = jiffy:encode( #{devpayProductCodes => null,
@@ -213,10 +213,10 @@ mock_lhttpc_request(
                         } ),
     RespHeaders = [{"content-type", "application/json"},
                    {"content-length", integer_to_list( byte_size(Body) )}],
-    {ok, {200, "OK"}, RespHeaders, Body};
+    {ok, {{200, "OK"}, RespHeaders, Body}};
 mock_lhttpc_request(
   test_accountid_sts,
-  "http://169.254.168.254/latest/dynamic/instance-identity/document",
+  "http://169.254.169.254/latest/dynamic/instance-identity/document",
   get, _, <<>>, _Timeout, _Options ) ->
     {error, econnrefused};
 mock_lhttpc_request( _Test, Uri, Method, Headers, Body, Timeout, Options ) ->
