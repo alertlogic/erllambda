@@ -119,8 +119,7 @@ handle_info(poll, #state{handler = Handler} = State) ->
     case erllambda:invoke(Handler, Body, Hdrs) of
         {ok, Json} ->
             invoke_success(State, ReqId, Json);
-        {Error, ErrJson}
-                when Error == handled orelse Error == unhandled ->
+        {error, ErrJson} ->
             invoke_error(State, ReqId, ErrJson)
     end,
     {noreply, State#state{timer_ref = erlang:send_after(0, self(), poll)}};

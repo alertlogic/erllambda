@@ -70,7 +70,8 @@ fail( Message ) ->
     fail( "~s", [Message] ).
 
 fail( Format, Values ) ->
-    complete( #{errorType => 'HandlerFailure',
+    complete( #{errorType => 'Handled',
+                stackTrace => [],
                 errorMessage => format( Format, Values )} ).
 
 
@@ -272,7 +273,7 @@ accountid() ->
 
 %%%---------------------------------------------------------------------------
 -spec invoke( Handler :: module(), Event :: binary(),
-              EventHdrs :: list() ) -> {ok, term()} | {handled|unhandled, term()}.
+              EventHdrs :: list() ) -> {ok, term()} | {error, term()}.
 %%%---------------------------------------------------------------------------
 %%
 %%
@@ -297,10 +298,10 @@ invoke( Handler, Event, EventHdrs )  ->
             Res;
         {'DOWN', MonRef, process, _Pid, Result} ->
             Message = format( "Handler terminated with ~p", [Result] ),
-            Response = #{errorType => 'HandlerFailure',
+            Response = #{errorType => 'Unhandled',
                 errorMessage => Message,
                 stackTrace => []},
-            {unhandled, Response}
+            {error, Response}
     end.
 
 invoke_exec( Handler, Event, Context ) ->
@@ -317,15 +318,15 @@ invoke_exec( Handler, Event, Context ) ->
     catch
         % both top level handler and we can can call success/fail
         throw:{?MODULE, result, JsonMap} -> {ok, JsonMap};
-        throw:{?MODULE, failure, JsonMap} -> {handled, JsonMap};
+        throw:{?MODULE, failure, JsonMap} -> {error, JsonMap};
         Type:Reason ->
             Trace = erlang:get_stacktrace(),
             Message = format( "terminated with exception {~p, ~p}", [Type, Reason] ),
             message_send( format( "~s with trace ~p", [Message, Trace] ) ),
-            Response = #{errorType => 'HandlerFailure',
+            Response = #{errorType => 'Unhandled',
                 errorMessage => Message,
                 stackTrace => format("~p", [Trace])},
-            {unhandled, Response}
+            {error, Response}
     end.
 
 invoke_credentials( #{<<"AWS_SESSION_TOKEN">> := Token} = _Context ,
