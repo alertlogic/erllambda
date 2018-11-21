@@ -156,22 +156,17 @@ test_environ_file( _Config ) ->
 %% Internal Functions
 %%%=============================================================================
 mock_group( Group, Config ) ->
-    Pid = spawn( fun() ->
-                         Modules = mock_group( Group ),
-                         receive stop ->
-                                 [meck:unload( M ) || M <- Modules]
-                         end
-                 end ),
-    [{mock_group, Pid} | Config].
+    Modules = mock_group(Group),
+    [{mocked_modules, Modules} | Config].
 
 mock_group( region ) ->
-    ok = meck:new( lhttpc, [passthrough] ),
+    ok = meck:new( lhttpc, [passthrough, no_link] ),
     ok = meck:expect( lhttpc, request, fun mock_lhttpc_request/6 ),
     [lhttpc];
 mock_group( accountid ) ->
-    ok = meck:new( lhttpc, [passthrough] ),
+    ok = meck:new( lhttpc, [passthrough, no_link] ),
     ok = meck:expect( lhttpc, request, fun mock_lhttpc_request/6 ),
-    ok = meck:new( erlcloud_sts, [passthrough] ),
+    ok = meck:new( erlcloud_sts, [passthrough, no_link] ),
     GetCallerIdentityResult =
         [{account, "912345678901"},
          {userId, "AROAIARCB7OKPBVOAAAAA:AWS-CLI-session-1489174314"},
@@ -183,8 +178,8 @@ mock_group( environ ) ->
     [].
 
 unmock_group( _Group, Config ) ->
-    Pid = proplists:get_value( mock_group, Config ),
-    Pid ! stop,
+    Modules = proplists:get_value( mocked_modules, Config ),
+    meck:unload(Modules),
     Config.
 
 
