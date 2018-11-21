@@ -33,7 +33,12 @@
     %% set the STS expiration to max by default.
     {default_role_duration_sec, 3600},
     %% how much upfront to evict the STS token record
-    {default_role_evict_sec, 10}
+    {default_role_evict_sec, 10},
+    %% do less GC while executing the handler
+    {handler_spawn_opts, [
+     {min_bin_vheap_size, 2487399},
+     {min_heap_size, 2487399}
+    ]}
    ]},
   {modules, []},
   {contributors, []},
