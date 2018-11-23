@@ -51,22 +51,21 @@ implementations should not simply retrieve the config every time it is
 needed, and not try to cache it.
 
 **NOTE**: This method of accessing the credentials is the only method
-guaranteed to work in all execution environments (e.g. local development,
-AWS Lambda, and
-[EEE Functions/Containers](https://algithub.pd.alertlogic.net/alertlogic/eee).
+guaranteed to work in all execution environments (e.g. local
+development and AWS Lambda).
 
 
 ## Assuming Alternative Roles
 
 If the Lambda implementation needs to assume an IAM Role, other than the
 execution role configured for the Lambda function, this should be
-accomplished by using the `iwsutil:config/1,2` functions.
+accomplished by using the `erllambda:config/1,2` functions.
 
 ```
 ddb_with_role( Role, ExternalId ) ->
     Region = erllambda:region(),
     Options = [{iam_role, Role}, {iam_extid, ExternalId}, {services, [ddb]}],
-    Config = iwsutil:config( Region, Options ),
+    Config = erllambda:config( Region, Options ),
     ...
 ```
 
@@ -84,9 +83,7 @@ and build environments.
 
 **NOTE**: Many of the topics in this section assume that you have generated
 your `erllambda` project using the
-[`rebar3_erllambda`](https://algithub.pd.alertlogic.net/alertlogic/rebar3_erllambda)
-plugin, or are otherwise working in an environment based on
-[makeincl](https://algithub.pd.alertlogic.net/alertlogic/makeincl).
+[`rebar3_erllambda`](https://github.com/alertlogic/rebar3_erllambda) plugin.
 
 
 ## Testing via Erlang Shell
@@ -95,7 +92,7 @@ It is very simple to test your `erllambda` implementation, from your local
 development environment, using the Erlang shell.  Simple run:
 
 ```
-make shell
+rebar3 shell
 ```
 
 and the `rebar3` node will boot into the shell. Once booted, you can
@@ -108,4 +105,3 @@ implementation.
 
 
 ## Testing via Common Test
-
