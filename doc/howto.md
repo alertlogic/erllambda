@@ -105,3 +105,13 @@ implementation.
 
 
 ## Testing via Common Test
+
+Running common tests shouldn't be any different from running tests for
+regular Erlang application using `rebar3`:
+
+``` console
+rebar3 ct
+```
+
+See rebar3 [guide](https://www.rebar3.org/docs/running-tests) on how
+to run tests for details.
