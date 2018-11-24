@@ -19,10 +19,6 @@ Erlang Lambda functions implement a simple two function behavior:
 -export([init/1]).
 -export([handle/2]).
 
--spec init( Context :: map() ) -> ok | none().
-init( Context ) ->
-    erllambda:succeed( "Hello AWS Runtime!" ).
-    
 -spec handle( Event :: map(), Context :: map() ) -> {ok, Body} | {error, ErrorBody}.
 handle( Event, Context ) ->
     erllambda:succeed( "Hello Event ~p", [Event] ).

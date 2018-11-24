@@ -38,9 +38,6 @@
 %% Callback Interface Definition
 %%============================================================================
 %%%---------------------------------------------------------------------------
--callback init( Context :: map() ) ->
-    ok | {ok, iolist() | map()} | {error, iolist()}.
-
 -callback handle( Event :: map(), Context :: map() ) ->
     ok | {ok, iolist() | map()} | {error, iolist()}.
 
