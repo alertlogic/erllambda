@@ -94,3 +94,7 @@ For full list of available execution environment variables see [Lambda Execution
 ### Example
 
 [Erllambda example](https://github.com/alertlogic/erllambda_example) repository contains an example of simple AWS Lambda function based on `erllambda`.
+
+### Getting started
+
+[rebar3 plugin](https://github.com/alertlogic/rebar3_erllambda#getting-started) for erllambda contains a great [section](https://github.com/alertlogic/rebar3_erllambda#getting-started) on how to get started with erllamda.
