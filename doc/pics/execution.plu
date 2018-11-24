@@ -1,0 +1,67 @@
+@startuml
+
+participant "AWS Runtime API" as AWSRuntimeAPI
+
+box "Runtime"
+    participant "bootstrap" as bootstrap
+    participant "Erlang Run-Time System" as erts
+    participant "erllambda" as erllambda
+end box
+
+participant "Function" as function
+
+skinparam SequenceGroupBodyBackgroundColor transparent
+skinparam BoxPadding 100
+
+autonumber
+
+group Init phase
+
+    [–-> AWSRuntimeAPI : λ start
+    activate AWSRuntimeAPI
+
+    [--> bootstrap : start
+
+    activate bootstrap
+    bootstrap -> erts : start
+
+    activate erts
+    erts -> erllambda : start OTP application
+
+    activate erllambda
+    erllambda --> erts
+
+    erts -> function : start OTP application
+
+    activate function
+    function --> erts
+
+    erllambda --> AWSRuntimeAPI : /invocation/next
+
+end
+
+== λ freeze ==
+...
+
+group Invocation cycle
+
+    == λ thaw ==
+
+    [--> AWSRuntimeAPI : Invoke request
+    == Invoke phase ==
+
+    AWSRuntimeAPI --> erllambda : return payload
+    erllambda -> function : function:handle(Event, Context)
+    function --> erllambda : ok | {ok, Result}
+
+    erllambda -> AWSRuntimeAPI : /invocation/response
+    AWSRuntimeAPI --> erllambda
+
+    erllambda -> AWSRuntimeAPI : /invocation/next
+
+    == λ freeze ==
+
+    [<-- AWSRuntimeAPI : invoke response
+end
+
+@enduml
