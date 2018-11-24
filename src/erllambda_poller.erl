@@ -38,7 +38,6 @@
 -define(INVOKE_NEXT_PATH, <<"/runtime/invocation/next">>).
 -define(INVOKE_REPLAY_SUCCESS_PATH(ReqId), <<"/runtime/invocation/",ReqId/binary, "/response">>).
 -define(INVOKE_REPLAY_ERROR_PATH(ReqId), <<"/runtime/invocation/", ReqId/binary, "/error">>).
--define(INIT_ERROR_PATH, <<"/runtime/init/error">>).
 
 %%******************************************************************************
 %% API functions
@@ -191,22 +190,6 @@ invoke_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
         "/", ?API_VERSION/binary,
         (?INVOKE_REPLAY_ERROR_PATH(AwsReqId))/binary>>),
     erllambda:message("Invoke Error path ~p ~s", [os:system_time(millisecond), FullPath]),
-    %% infinity due to container Freeze/thaw behaviour
-    case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
-        {ok, {{202, _}, _Hdrs, _Body}} ->
-            ok;
-        {ok, {{Other, _}, _Hdrs, Body}} ->
-            % error from Runtime API
-            erllambda:message("Error from runtime API ~p ~p ", [Other, Body]),
-            erlang:error({Other, Body});
-        {error, _} = Err ->
-            erlang:error(Err)
-    end.
-
-init_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, Body) ->
-    FullPath = binary_to_list(<<"http://", Addr/binary,
-        "/", ?API_VERSION/binary, ?INIT_ERROR_PATH/binary>>),
-    erllambda:message("Init Error path ~p ~s", [os:system_time(millisecond), FullPath]),
     %% infinity due to container Freeze/thaw behaviour
     case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
         {ok, {{202, _}, _Hdrs, _Body}} ->
