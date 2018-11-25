@@ -44,7 +44,7 @@ groups() ->
                test_region_instancedoc]},
      {accountid, [test_accountid_config, test_accountid_instancedoc,
                   test_accountid_sts]},
-     {environ, [test_environ_devenv, test_environ_env, test_environ_config,
+     {environ, [test_environ_devenv, test_environ_config,
                 test_environ_file]}
     ].
 
@@ -129,13 +129,6 @@ test_environ_devenv( _Config ) ->
     %% reset env to verify original value cached
     os:putenv( "ENVIRON", "budder" ),
     ?assertEqual( <<"fudder">>, erllambda:environ() ).
-
-test_environ_env( _Config ) ->
-    os:putenv( "IWS_BASESTACKNAME", "blabla" ),
-    ?assertEqual( <<"blabla">>, erllambda:environ() ),
-    %% reset env to verify original value cached
-    os:putenv( "IWS_BASESTACKNAME", "flafla" ),
-    ?assertEqual( <<"blabla">>, erllambda:environ() ).
 
 test_environ_config( _Config ) ->
     Environ = <<"jaba-wat">>,
@@ -235,5 +228,4 @@ clear( accountid ) ->
 clear( environ ) ->
     true = os:unsetenv( "ENVIRON" ),
     ok = application:unset_env( erllambda, environ ),
-    true = os:unsetenv( "IWS_BASESTACKNAME" ),
     ok.

@@ -198,8 +198,7 @@ environ_() ->
     Environ.
 
 environ_env() ->
-    %% makeincl sets ENVIRON and IWS containers set IWS_BASESTACKNAME
-    case os:getenv( "ENVIRON", os:getenv( "IWS_BASESTACKNAME" ) ) of
+    case os:getenv( "ENVIRON" ) of
         false -> undefined;
         Environ -> list_to_binary(Environ)
     end.
