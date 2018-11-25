@@ -12,11 +12,10 @@ functions, written entirely in Erlang.
 
 Erlang Lambda functions implement a simple two function behavior:
 
-```
+```erlang
 -module(hello_lambda).
 
 -behavior(erllambda).
--export([init/1]).
 -export([handle/2]).
 
 -spec handle( Event :: map(), Context :: map() ) -> {ok, Body} | {error, ErrorBody}.
