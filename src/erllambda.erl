@@ -67,7 +67,7 @@ fail( Message ) ->
     fail( "~s", [Message] ).
 
 fail( Format, Values ) ->
-    complete( #{errorType => 'HandlerFailure',
+    complete( #{errorType => <<"Handled">>,
                 errorMessage => format( Format, Values )} ).
 
 
@@ -294,7 +294,7 @@ invoke( Handler, Event, EventHdrs )  ->
             Res;
         {'DOWN', MonRef, process, _Pid, Result} ->
             Message = format( "Handler terminated with ~p", [Result] ),
-            Response = #{errorType => 'HandlerFailure',
+            Response = #{errorType => <<"Unhandled">>,
                 errorMessage => Message,
                 stackTrace => []},
             {unhandled, Response}
@@ -319,7 +319,7 @@ invoke_exec( Handler, Event, Context ) ->
             Trace = erlang:get_stacktrace(),
             Message = format( "terminated with exception {~p, ~p}", [Type, Reason] ),
             message_send( format( "~s with trace ~p", [Message, Trace] ) ),
-            Response = #{errorType => 'HandlerFailure',
+            Response = #{errorType => <<"Unhandled">>,
                 errorMessage => Message,
                 stackTrace => format("~p", [Trace])},
             {unhandled, Response}
