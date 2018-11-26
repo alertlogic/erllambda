@@ -12,7 +12,7 @@
 init(#{method := <<"POST">>} = Req, Opts) ->
     ReqId = cowboy_req:binding(req_id, Req),
     {ok, Body, Req1} = cowboy_req:read_body(Req),
-    ResponseResult = jiffy:decode(Body, [return_maps]),
+    ResponseResult = maybe_decode_json(Body),
     case cowboy_req:binding(operation, Req1) of
         <<"response">> ->
             ok = erllambda_aws_runtime_srv:response_ok(ReqId, ResponseResult);
@@ -30,3 +30,11 @@ init(Req0, Opts) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+maybe_decode_json(Body) ->
+    try
+        jiffy:decode(Body, [return_maps])
+    catch
+        _:_ ->
+            Body
+    end.
