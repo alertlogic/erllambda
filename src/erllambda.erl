@@ -20,7 +20,7 @@
 -export([metric/1, metric/2, metric/3, metric/4]).
 -export([get_remaining_ms/1, get_aws_request_id/1]).
 -export([region/0, environ/0, accountid/0, config/0, config/1, config/2]).
--export([print_env/0]).
+-export([print_env/0, line_format/2]).
 
 %% private - handler invocation entry point, used by http api
 -export([invoke/3]).
@@ -321,7 +321,7 @@ invoke_exec( Handler, Event, Context ) ->
             message_send( format( "~s with trace ~p", [Message, Trace] ) ),
             Response = #{errorType => 'HandlerFailure',
                 errorMessage => Message,
-                stackTrace => format("~p", [Trace])},
+                stackTrace => format_stack(Trace)},
             {unhandled, Response}
     end.
 
@@ -346,6 +346,13 @@ invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
                           security_token = erllambda_util:to_list(Token),
                           expiration = undefined },
     application:set_env( erllambda, config, Config ).
+
+-spec line_format(io:format(), [term()]) -> iodata() | unicode:charlist().
+line_format(Format, Data) ->
+    Format1 = io_lib:scan_format(Format, Data),
+    Format2 = reformat(Format1),
+    Text = io_lib:build_text(Format2),
+    one_line_it(Text).
 
 %%============================================================================
 %% Internal Functions
@@ -396,10 +403,69 @@ hide_secret(Map) ->
 hdr2map(Hdrs) ->
     maps:from_list([{list_to_binary(K), list_to_binary(V)} || {K, V} <- Hdrs]).
 
+format_stack([StackItem | Tail]) ->
+    ItemBin = iolist_to_binary(line_format("~p", [StackItem])),
+    [ItemBin | format_stack(Tail)];
+format_stack([]) ->
+    [].
+
+reformat(Format) ->
+    reformat(Format, _Width = 134217721).
+
+reformat([#{control_char := C} = M | T], Width) when C =:= $p; C =:= $P ->
+    [M#{width => Width} | reformat(T, Width)];
+reformat([H | T], Width) ->
+    [H | reformat(T, Width)];
+reformat([], _Width) ->
+    [].
+
+one_line_it(Text) ->
+    re:replace(string:trim(Text), "\r?\n\s*", " ", [{return,list},global,unicode]).
+
+
 %%====================================================================
 %% Test Functions
 %%====================================================================
 -ifdef(TEST).
 
+line_format_test_() ->
+    MultilineJson =
+        <<"[\n"
+          "  {\n"
+          "    \"_id\": \"5be7f5f8e8c1ed9241898c1a\",\n"
+          "    \"index\": 0,\n"
+          "    \"guid\": \"581599e9-4f5d-45c7-9c5c-2bd5611f59fd\",\n"
+          "    \"isActive\": false,\n"
+          "    \"balance\": \"$3,819.73\",\n"
+          "    \"picture\": \"http://placehold.it/32x32\",\n"
+          "    \"age\": 21,\n"
+          "    \"eyeColor\": \"blue\",\n"
+          "    \"name\": {\n"
+          "      \"first\": \"Marcie\",\n"
+          "      \"last\": \"Byrd\"\n"
+          "    }\n"
+          "  }\n"
+          "]\n">>,
+    [
+     ?_assertEqual("List [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,"
+                   "21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,"
+                   "41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,"
+                   "61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,"
+                   "81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100]",
+                   line_format("List ~p", [lists:seq(1, 100)])),
+     ?_assertEqual("Multiline Json [ { \"_id\": \"5be7f5f8e8c1ed9241898c1a\", \"index\": 0, \"guid\": \"581599e9-4f5d-45c7-9c5c-2bd5611f59fd\", \"isActive\": false, \"balance\": \"$3,819.73\", \"picture\": \"http://placehold.it/32x32\", \"age\": 21, \"eyeColor\": \"blue\", \"name\": { \"first\": \"Marcie\", \"last\": \"Byrd\" } } ]",
+                   line_format("Multiline Json ~s", [MultilineJson]))
+    ].
+
+format_stack_test_() ->
+    [
+     ?_assertEqual(
+        [<<"{module,function,2,[{file,\"file.erl\"},{line,11}]}">>,
+         <<"{module2,function2,3,[{file,\"file2.erl\"},{line,305}]}">>,
+         <<"{module3,function3,4,[{file,\"file3.erl\"},{line,285}]}">>],
+        format_stack([{module,function,2, [{file,"file.erl"}, {line,11}]},
+                      {module2,function2, 3, [{file,"file2.erl"}, {line,305}]},
+                      {module3,function3, 4, [{file,"file3.erl"}, {line,285}]}]))
+    ].
 
 -endif.
