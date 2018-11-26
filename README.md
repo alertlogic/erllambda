@@ -67,6 +67,8 @@ As part of the Erlang/Elixir package for AWS Lambda following are used:
   `mix`/`distillery` plugin to build & package your application in Elixir
  - [`erllambda_example`](https://github.com/alertlogic/erllambda_example) - 
   basic Erlang generated example
+ - [`erllambda_sam_example`](https://github.com/alertlogic/erllambda_sam_example) -
+  sample AWS Lambda function built using AWS SAM and `erllambda` library.
  - [`erllambda_elixir_example`](https://github.com/alertlogic/erllambda_elixir_example) - 
   basic Elixir generated example
 
