@@ -120,7 +120,7 @@ handle_info(poll, #state{handler = Handler} = State) ->
             invoke_success(State, ReqId, Json);
         {Error, ErrJson}
                 when Error == handled orelse Error == unhandled ->
-            invoke_error(State, ReqId, ErrJson)
+            invoke_error(State, ReqId, Error, ErrJson)
     end,
     {noreply, State#state{timer_ref = erlang:send_after(0, self(), poll)}};
 handle_info(Info, State) ->
@@ -185,13 +185,14 @@ invoke_success(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
             erlang:error(Err)
     end.
 
-invoke_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
+invoke_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, ErrorType, Body) ->
     FullPath = binary_to_list(<<"http://", Addr/binary,
         "/", ?API_VERSION/binary,
         (?INVOKE_REPLAY_ERROR_PATH(AwsReqId))/binary>>),
     erllambda:message("Invoke Error path ~p ~s", [os:system_time(millisecond), FullPath]),
     %% infinity due to container Freeze/thaw behaviour
-    case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
+    Headers = [{"Lambda-Runtime-Function-Error-Type", capitalize(atom_to_list(ErrorType))}],
+    case request(FullPath, post, Headers, encode_body(Body), infinity, AwsCfg) of
         {ok, {{202, _}, _Hdrs, _Body}} ->
             ok;
         {ok, {{Other, _}, _Hdrs, Body}} ->
@@ -201,6 +202,9 @@ invoke_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
         {error, _} = Err ->
             erlang:error(Err)
     end.
+
+capitalize([F | Tail]) ->
+    [string:to_upper(F) | string:to_lower(Tail)].
 
 request(URL, Method, Hdrs, Body, Timeout, undefined) ->
     lhttpc:request(URL, Method, Hdrs, Body, Timeout);
