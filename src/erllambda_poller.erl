@@ -177,6 +177,11 @@ invoke_success(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
     case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
         {ok, {{202, _}, _Hdrs, _Body}} ->
             ok;
+        {ok, {{413, _}, _Hdrs, Body}} ->
+            % we've sent too much
+            % just logs it as it's actually returned to the caller as error
+            erllambda:message("Payload too Large Error form runtime API ~p", [Body]),
+            ok;
         {ok, {{Other, _}, _Hdrs, Body}} ->
             % error from Runtime API
             erllambda:message("Error form runtime API ~p ~p ", [Other, Body]),
