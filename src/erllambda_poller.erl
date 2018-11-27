@@ -156,14 +156,14 @@ invoke_next(#state{runtime_addr = Addr, aws_cfg = AwsCfg}) ->
     erllambda:message("Invoke Next path ~p ~s", [os:system_time(millisecond), FullPath]),
     %% infinity due to container Freeze/thaw behaviour
     case request(FullPath, get, [], "", infinity, AwsCfg) of
-        {ok, {{200, _}, Hdrs, Body}} ->
+        {ok, {{200, _}, Hdrs, Rsp}} ->
             AwsReqId = erllambda:get_aws_request_id(Hdrs),
             set_context(AwsReqId),
-            {ok, AwsReqId, Hdrs, Body};
-        {ok, {{Other, _}, _Hdrs, Body}} ->
+            {ok, AwsReqId, Hdrs, Rsp};
+        {ok, {{Other, _}, _Hdrs, Rsp}} ->
             % error from Runtime API
-            erllambda:message("Error from runtime API ~p ~p ", [Other, Body]),
-            erlang:error({Other, Body});
+            erllambda:message("Error from runtime API ~p ~p ", [Other, Rsp]),
+            erlang:error({Other, Rsp});
         {error, _} = Err ->
             erlang:error(Err)
     end.
@@ -175,17 +175,17 @@ invoke_success(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
     erllambda:message("Invoke Success path ~p ~s", [os:system_time(millisecond), FullPath]),
     %% infinity due to container Freeze/thaw behaviour
     case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
-        {ok, {{202, _}, _Hdrs, _Body}} ->
+        {ok, {{202, _}, _Hdrs, _Rsp}} ->
             ok;
-        {ok, {{413, _}, _Hdrs, Body}} ->
+        {ok, {{413, _}, _Hdrs, Rsp}} ->
             % we've sent too much
             % just logs it as it's actually returned to the caller as error
-            erllambda:message("Payload too Large Error from runtime API ~p", [Body]),
+            erllambda:message("Payload too Large Error from runtime API ~p", [Rsp]),
             ok;
-        {ok, {{Other, _}, _Hdrs, Body}} ->
+        {ok, {{Other, _}, _Hdrs, Rsp}} ->
             % error from Runtime API
-            erllambda:message("Error form runtime API ~p ~p ", [Other, Body]),
-            erlang:error({Other, Body});
+            erllambda:message("Error form runtime API ~p ~p ", [Other, Rsp]),
+            erlang:error({Other, Rsp});
         {error, _} = Err ->
             erlang:error(Err)
     end.
@@ -197,12 +197,12 @@ invoke_error(#state{runtime_addr = Addr, aws_cfg = AwsCfg}, AwsReqId, Body) ->
     erllambda:message("Invoke Error path ~p ~s", [os:system_time(millisecond), FullPath]),
     %% infinity due to container Freeze/thaw behaviour
     case request(FullPath, post, [], encode_body(Body), infinity, AwsCfg) of
-        {ok, {{202, _}, _Hdrs, _Body}} ->
+        {ok, {{202, _}, _Hdrs, _Rsp}} ->
             ok;
-        {ok, {{Other, _}, _Hdrs, Body}} ->
+        {ok, {{Other, _}, _Hdrs, Rsp}} ->
             % error from Runtime API
-            erllambda:message("Error from runtime API ~p ~p ", [Other, Body]),
-            erlang:error({Other, Body});
+            erllambda:message("Error from runtime API ~p ~p ", [Other, Rsp]),
+            erlang:error({Other, Rsp});
         {error, _} = Err ->
             erlang:error(Err)
     end.
