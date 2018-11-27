@@ -44,8 +44,7 @@ groups() ->
                test_region_instancedoc]},
      {accountid, [test_accountid_config, test_accountid_instancedoc,
                   test_accountid_sts]},
-     {environ, [test_environ_devenv, test_environ_config,
-                test_environ_file]}
+     {environ, [test_environ_devenv, test_environ_config]}
     ].
 
 init_per_group( Group, Config ) ->
@@ -138,12 +137,6 @@ test_environ_config( _Config ) ->
     ok = application:set_env( erllambda, environ, <<"faba-wat">> ),
     ?assertEqual( Environ, erllambda:environ() ).
 
-test_environ_file( _Config ) ->
-    ok = meck:new( file, [unstick, passthrough] ),
-    ok = meck:expect( file, read_file, fun mock_file_read/1 ),
-    ?assertEqual( <<"foo-environ">>, erllambda:environ() ),
-    meck:unload( file ).
-
 
 %%%=============================================================================
 %% Internal Functions
@@ -209,13 +202,6 @@ mock_lhttpc_request(
     {error, econnrefused};
 mock_lhttpc_request( _Test, Uri, Method, Headers, Body, Timeout, Options ) ->
     meck:passthrough( [Uri, Method, Headers, Body, Timeout, Options] ).
-
-
-mock_file_read( "/var/alertlogic/data/base-stack-name" ) ->
-    {ok, <<"foo-environ\n">>};
-mock_file_read( Filename ) ->
-    ?debugHere,
-    meck:passthrough( [Filename] ).
 
 
 clear( region ) ->

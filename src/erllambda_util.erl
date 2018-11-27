@@ -35,10 +35,9 @@
 %%
 %% <ul>
 %%   <li>Environment Variable <code>REGION</code>
-%%     <p>The <code>makeincl<code> development tools set the
-%%     <code>REGION</code> environment variable when executing eunit or
-%%     common_tests, to allow local workstation execution to use AWS
-%%     resources during testing.</p>
+%%     <p><code>REGION</code> environment variable can be used during
+%%     eunit or common_tests executions, to allow local workstation execution
+%%     to use AWS resources during testing.</p>
 %%   </li>
 %%   <li>Application Config <code>erllambda.region</code>
 %%     <p>In cases where it is necessary to override natural region
@@ -190,7 +189,7 @@ environ() ->
     end.
 
 environ_() ->
-    Functions = [fun environ_env/0, fun environ_config/0, fun environ_file/0],
+    Functions = [fun environ_env/0, fun environ_config/0],
     Environ = lists:foldl( fun( Function, undefined ) -> Function();
                               ( _, Result ) -> Result
                            end, undefined, Functions ),
@@ -201,14 +200,6 @@ environ_env() ->
     case os:getenv( "ENVIRON" ) of
         false -> undefined;
         Environ -> list_to_binary(Environ)
-    end.
-
-environ_file() ->
-    case file:read_file( "/var/alertlogic/data/base-stack-name" ) of
-        {ok, Bin} ->
-            [Environ|_] = binary:split(Bin, <<"\n">>, [trim]),
-            Environ;
-        {error, _} -> undefined
     end.
 
 environ_config() ->
