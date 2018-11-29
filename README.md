@@ -47,7 +47,7 @@ More detailed information about developing Lambda functions using
 
 # Ownership
 
-The `erllambda` application and it's supporting libraries are primarily owned by
+The `erllambda` application and its supporting libraries are primarily owned by
 [motobob](https://github.com/motobob) and [velimir](https://github.com/velimir)
 
 # Dependencies
@@ -114,8 +114,8 @@ Having 512-1024MB is optimal for most of the use cases.
 
 ### Basic Deployment
 
-See [Erllambda Example](https://github.com/alertlogic/erllambda_example) for step by step procedure to deploy your Lambda.
-but it basically boils down to following steps:
+See [Erllambda Example](https://github.com/alertlogic/erllambda_example) for the step-by-step procedure to deploy your Lambda.
+It boils down to following steps:
 - compile and build a prod profile release of your application.
 
 ```
