@@ -79,9 +79,9 @@ As part of the Erlang/Elixir package for AWS Lambda following are used:
 developing `erllambda` should be as easy as forking the repo, and then:
 
 ```
-git clone git@github.com:${USER}/erllambda.git
+git clone https://github.com/${USER}/erllambda.git
 cd erllambda
-git remote add upstream git@github.com:alertlogic/erllambda.git
+git remote add upstream https://github.com/alertlogic/erllambda.git
 rebar3 compile 
 rebar3 ct
 rebar3 erllambda zip
