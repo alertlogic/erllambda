@@ -41,7 +41,7 @@
     ]}
    ]},
   {modules, []},
-  {contributors, []},
+  {maintainers, []},
   {licenses, ["MIT"]},
   {links, [{"Github", "https://github.com/alertlogic/erllambda"}]}
  ]}.
