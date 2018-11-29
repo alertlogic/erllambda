@@ -48,7 +48,7 @@ More detailed information about developing Lambda functions using
 # Ownership
 
 The `erllambda` application and it's supporting libraries are primarily owned by
-[motobob](https://github.com/motobob) and [velimir0xff](https://github.com/velimir0xff)  
+[motobob](https://github.com/motobob) and [velimir](https://github.com/velimir)
 
 # Dependencies
 
