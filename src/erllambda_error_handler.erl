@@ -85,7 +85,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 
 output(Format, Data) ->
-    io:fwrite([erllambda:line_format(Format, Data), "\n"]).
+    io:fwrite(string:concat(erllambda:line_format(Format, Data), "\n")).
 
 %%====================================================================
 %% Test Functions
