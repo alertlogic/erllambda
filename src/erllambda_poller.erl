@@ -72,9 +72,9 @@ handler_module() ->
     end.
 
 -record(state, {
-    runtime_addr  = undefined :: binary(),
+    runtime_addr  = undefined :: undefined | binary(),
     handler       = undefined :: atom(),
-    timer_ref     = undefined :: reference(),
+    timer_ref     = undefined :: undefined | reference(),
 %%    aws_cfg       = #aws_config{http_client = hackney}
     aws_cfg       = undefined
 }).
@@ -96,9 +96,9 @@ init([]) ->
     }}.
 
 %% @private
-handle_call(What, _From, _State) ->
+handle_call(What, _From, State) ->
     erllambda:message("unknown msg ~p", [What]),
-    {stop, "unknown msg"}.
+    {stop, "unknown msg", State}.
 
 %% @private
 handle_cast(Info, State) ->

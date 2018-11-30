@@ -123,8 +123,8 @@ test_unhandled_stacktrace(_Config) ->
     {error, #{<<"stackTrace">> := Trace}} =
         erllambda_aws_runtime:call(#{type => badmatch}),
     ["{erllambda_crash_handler,handle,2,[{file,\"file.erl\"},{line,11}]}",
-     "{erllambda,invoke_exec,3,[{file,\"file.erl\"},{line,305}]}",
-     "{erllambda,'-invoke/3-fun-0-',4,[{file,\"file.erl\"},{line,285}]}"] =
+     "{erllambda,invoke_exec,3,[{file,\"file.erl\"},{line,306}]}",
+     "{erllambda,'-invoke/3-fun-0-',4,[{file,\"file.erl\"},{line,286}]}"] =
         replace_location(Trace).
 
 %%%===================================================================

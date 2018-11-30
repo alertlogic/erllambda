@@ -28,7 +28,7 @@
 -record(cv, {
           key :: any(),
           value :: any(),
-          expire :: pos_integer()
+          expire :: undefined | pos_integer()
 }).
 
 %%******************************************************************************
