@@ -1,0 +1,12 @@
+sudo: false
+language: erlang
+
+otp_release:
+    - 21.1.3
+    - 20.3.8
+
+install:
+   - wget -c https://github.com/erlang/rebar3/releases/download/3.7.5/rebar3 && chmod +x rebar3
+
+script:
+   - ./rebar3 do compile, dialyzer, ct
