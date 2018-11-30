@@ -25,7 +25,8 @@
 %% private - handler invocation entry point, used by http api
 -export([invoke/3]).
 
--include("include/erllambda.hrl").
+-include("erllambda.hrl").
+-include("exception.hrl").
 -include_lib("erlcloud/include/erlcloud_aws.hrl").
 
 -ifdef(TEST).
@@ -315,8 +316,8 @@ invoke_exec( Handler, Event, Context ) ->
         % both top level handler and we can can call success/fail
         throw:{?MODULE, result, JsonMap} -> {ok, JsonMap};
         throw:{?MODULE, failure, JsonMap} -> {handled, JsonMap};
-        Type:Reason ->
-            Trace = erlang:get_stacktrace(),
+        ?EXCEPTION(Type, Reason, Stacktrace) ->
+            Trace = ?GET_STACK(Stacktrace),
             Message = format( "terminated with exception {~p, ~p}", [Type, Reason] ),
             message_send( format( "~s with trace ~p", [Message, Trace] ) ),
             Response = #{errorType => 'HandlerFailure',
