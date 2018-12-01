@@ -73,8 +73,9 @@ handle_call(_Request, State) ->
 handle_info(_Info, State) ->
     {ok, State}.
 
-terminate(_Reason, _State) ->
-    ok.
+terminate(Reason, State) ->
+    io:fwrite("~w terminated with reason ~w and state ~w~n",
+              [?MODULE, Reason, State]).
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
@@ -83,8 +84,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 
-output(Format, []) ->
-    output("%s", [Format]);
 output(Format, Data) ->
     io:fwrite([erllambda:line_format(Format, Data), "\n"]).
 
@@ -92,5 +91,12 @@ output(Format, Data) ->
 %% Test Functions
 %%====================================================================
 -ifdef(TEST).
+
+output_test_() ->
+    [
+     ?_assertEqual(ok, output("~s", ["arg"])),
+     ?_assertEqual(ok, output("message ~s", ["arg"])),
+     ?_assertEqual(ok, output("message", []))
+    ].
 
 -endif.
