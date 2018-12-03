@@ -1,6 +1,9 @@
 -module(erllambda_SUITE).
 
+-include_lib("erlcloud/include/erlcloud_aws.hrl").
+
 -include_lib("common_test/include/ct.hrl").
+-include_lib("eunit/include/eunit.hrl").
 
 %%--------------------------------------------------------------------
 %% @spec suite() -> Info
@@ -18,19 +21,12 @@ suite() ->
 %% @end
 %%--------------------------------------------------------------------
 init_per_suite(Config) ->
-    {ok, _} = erllambda_aws_runtime:start(),
-    Port = erllambda_aws_runtime:http_port(),
-    RunTimeAddress = lists:flatten(io_lib:format("127.0.0.1:~w", [Port])),
-    OldEnv =
-        putenv([{"AWS_LAMBDA_RUNTIME_API", RunTimeAddress},
-                {"AWS_ACCESS_KEY_ID", "10560ff7be594e0c"},
-                {"AWS_SECRET_ACCESS_KEY", "71b5110832454df0ba9a85073d60bb8b"},
-                {"AWS_SESSION_TOKEN", "c14c5ae0d56242cbb2d85a8cf1433ece"}]),
+    AWSConfig = erllambda_ct:init_aws_env(),
     application:load(erllambda),
-    application:set_env(erllambda, handler_module, erllambda_fibonachi_handler),
+    application:set_env(erllambda, handler_module, erllambda_proxy_handler),
     application:set_env(erllambda, print_env, false),
     {ok, _} = application:ensure_all_started(erllambda),
-    [{old_env, OldEnv} | Config].
+    AWSConfig ++ Config.
 
 %%--------------------------------------------------------------------
 %% @spec end_per_suite(Config0) -> term() | {save_config,Config1}
@@ -39,9 +35,8 @@ init_per_suite(Config) ->
 %%--------------------------------------------------------------------
 end_per_suite(Config) ->
     application:stop(erllambda),
-    putenv(?config(old_env, Config)),
     application:unload(erllambda),
-    ok = erllambda_aws_runtime:stop().
+    erllambda_ct:destruct_aws_env(Config).
 
 %%--------------------------------------------------------------------
 %% @spec init_per_group(GroupName, Config0) ->
@@ -111,19 +106,13 @@ groups() ->
 %% @end
 %%--------------------------------------------------------------------
 all() ->
-    [test_fibonachi].
+    [test_fibonachi,
+     test_aws_config_preserved,
+     test_aws_config_updated].
 
 %%%===================================================================
 %%% TestCases
 %%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @spec TestCase() -> Info
-%% Info = [tuple()]
-%% @end
-%%--------------------------------------------------------------------
-test_fibonachi() ->
-    [].
 
 %%--------------------------------------------------------------------
 %% @spec TestCase(Config0) ->
@@ -135,6 +124,7 @@ test_fibonachi() ->
 %% @end
 %%--------------------------------------------------------------------
 test_fibonachi(_Config) ->
+    erllambda_proxy_handler:delegate_to(erllambda_fibonachi_handler),
     {ok, #{<<"sequence">> := [0, 1, 1, 2, 3, 5]}} =
         lists:foldl(
           fun(_, {ok, Params}) -> erllambda_aws_runtime:call(Params) end,
@@ -142,18 +132,27 @@ test_fibonachi(_Config) ->
           lists:seq(0, 5)).
 
 
+test_aws_config_preserved(_Config) ->
+    erllambda_proxy_handler:delegate_to(erllambda_inspect_handler),
+    {ok, #{<<"expiration">> := <<"undefined">>}} =
+        erllambda_aws_runtime:call(#{<<"what">> => <<"erllambda_config">>}),
+    {ok, AWSConfig} = application:get_env(erllambda, config),
+    Expiration = 1800,
+    AWSConfig1 = AWSConfig#aws_config{expiration = Expiration},
+    application:set_env(erllambda, config, AWSConfig1),
+    {ok, #{<<"expiration">> := Expiration}} =
+        erllambda_aws_runtime:call(#{<<"what">> => <<"erllambda_config">>}).
+
+
+test_aws_config_updated(_Config) ->
+    erllambda_proxy_handler:delegate_to(erllambda_inspect_handler),
+    {ok, #{<<"security_token">> := SecurityToken}} =
+        erllambda_aws_runtime:call(#{<<"what">> => <<"erllambda_config">>}),
+    NewToken = <<"7956547a4caa4759b30ae9f977c374a5">>,
+    ?assertNotEqual(SecurityToken, NewToken),
+    os:putenv("AWS_SESSION_TOKEN", binary_to_list(NewToken)),
+    {ok, #{<<"security_token">> := NewToken}} =
+        erllambda_aws_runtime:call(#{<<"what">> => <<"erllambda_config">>}).
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-putenv([{Key, Value} | Tail]) ->
-    OldValue = os:getenv(Key, undefined),
-    putenv(Key, Value),
-    [{Key, OldValue} | putenv(Tail)];
-putenv([]) ->
-    [].
-
-putenv(Key, undefined) ->
-    os:unsetenv(Key);
-putenv(Key, Value) ->
-    os:putenv(Key, Value).

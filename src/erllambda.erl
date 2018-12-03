@@ -281,7 +281,7 @@ invoke( Handler, Event, EventHdrs )  ->
             % construct the contexts on the fly
             % binaries all the way down
             Context = maps:merge(os_env2map(), hdr2map(EventHdrs)),
-            invoke_credentials( Context, application:get_env( erllambda, config )),
+            invoke_credentials(Context),
             Res = invoke_exec(Handler, Event, Context),
             Parent ! {handle, Res}
         end,
@@ -325,14 +325,28 @@ invoke_exec( Handler, Event, Context ) ->
             {unhandled, Response}
     end.
 
-invoke_credentials( #{<<"AWS_SESSION_TOKEN">> := Token} = _Context ,
-                    {ok, #aws_config{security_token = Token}}) ->
-    ok;
-invoke_credentials( #{<<"AWS_SECRET_ACCESS_KEY">> := Key} = _Context ,
-                    {ok, #aws_config{secret_access_key = Key}}) ->
-    ok;
-invoke_credentials( Context, _ ) ->
-    invoke_update_credentials( Context ).
+invoke_credentials(Context) ->
+    case application:get_env(erllambda, config) of
+        {ok, #aws_config{} = AWSConfig} ->
+            invoke_credentials(Context, AWSConfig);
+        _ ->
+            invoke_update_credentials(Context)
+    end.
+
+invoke_credentials(#{<<"AWS_SESSION_TOKEN">> := Token} = Context, Config) ->
+    invoke_maybe_update_credentials(Token, Context, #aws_config.security_token, Config);
+invoke_credentials(#{<<"AWS_SECRET_ACCESS_KEY">> := Key} = Context, Config) ->
+    invoke_maybe_update_credentials(Key, Context, #aws_config.secret_access_key, Config);
+invoke_credentials(Context, _) ->
+    invoke_update_credentials(Context).
+
+invoke_maybe_update_credentials(Value, Context, Index, Config) ->
+    case erllambda_util:to_binary(element(Index, Config)) of
+        Value ->
+            ok;
+        _ ->
+            invoke_update_credentials(Context)
+    end.
 
 invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
                              <<"AWS_SECRET_ACCESS_KEY">> := Key,
