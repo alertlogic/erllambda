@@ -1,6 +1,9 @@
 -module(erllambda_SUITE).
 
+-include_lib("erlcloud/include/erlcloud_aws.hrl").
+
 -include_lib("common_test/include/ct.hrl").
+-include_lib("eunit/include/eunit.hrl").
 
 %%--------------------------------------------------------------------
 %% @spec suite() -> Info
@@ -103,7 +106,9 @@ groups() ->
 %% @end
 %%--------------------------------------------------------------------
 all() ->
-    [test_fibonachi].
+    [test_fibonachi,
+     test_aws_config_preserved,
+     test_aws_config_updated].
 
 %%%===================================================================
 %%% TestCases
@@ -127,6 +132,27 @@ test_fibonachi(_Config) ->
           lists:seq(0, 5)).
 
 
+test_aws_config_preserved(_Config) ->
+    erllambda_proxy_handler:delegate_to(erllambda_inspect_handler),
+    {ok, #{<<"expiration">> := <<"undefined">>}} =
+        erllambda_aws_runtime:call(#{<<"what">> => <<"erllambda_config">>}),
+    {ok, AWSConfig} = application:get_env(erllambda, config),
+    Expiration = 1800,
+    AWSConfig1 = AWSConfig#aws_config{expiration = Expiration},
+    application:set_env(erllambda, config, AWSConfig1),
+    {ok, #{<<"expiration">> := Expiration}} =
+        erllambda_aws_runtime:call(#{<<"what">> => <<"erllambda_config">>}).
+
+
+test_aws_config_updated(_Config) ->
+    erllambda_proxy_handler:delegate_to(erllambda_inspect_handler),
+    {ok, #{<<"security_token">> := SecurityToken}} =
+        erllambda_aws_runtime:call(#{<<"what">> => <<"erllambda_config">>}),
+    NewToken = <<"7956547a4caa4759b30ae9f977c374a5">>,
+    ?assertNotEqual(SecurityToken, NewToken),
+    os:putenv("AWS_SESSION_TOKEN", binary_to_list(NewToken)),
+    {ok, #{<<"security_token">> := NewToken}} =
+        erllambda_aws_runtime:call(#{<<"what">> => <<"erllambda_config">>}).
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
