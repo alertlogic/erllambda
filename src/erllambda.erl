@@ -25,7 +25,8 @@
 %% private - handler invocation entry point, used by http api
 -export([invoke/3]).
 
--include("include/erllambda.hrl").
+-include("erllambda.hrl").
+-include("exception.hrl").
 -include_lib("erlcloud/include/erlcloud_aws.hrl").
 
 -ifdef(TEST).
@@ -45,7 +46,7 @@
 %% API Functions
 %%============================================================================
 %%%---------------------------------------------------------------------------
--spec succeed(Value :: iolist() | map()) -> none().
+-spec succeed(Value :: iolist() | map()) -> no_return().
 %%%---------------------------------------------------------------------------
 %% @doc Complete processing with success
 %%
@@ -59,7 +60,7 @@ succeed( Format, Values ) ->
 
 
 %%%---------------------------------------------------------------------------
--spec fail( Message :: iolist() ) -> none().
+-spec fail( Message :: iolist() ) -> no_return().
 %%%---------------------------------------------------------------------------
 %% @doc Complete a processing with failure
 %%
@@ -181,7 +182,7 @@ get_remaining_ms(#{<<"lambda-runtime-deadline-ms">> := Deadline}) ->
     Deadline - CurrentTs.
 
 %%%---------------------------------------------------------------------------
--spec get_aws_request_id(map()) -> binary() | undefined.
+-spec get_aws_request_id(list() | map()) -> binary() | undefined.
 %%%---------------------------------------------------------------------------
 %% @doc Extract the request Id
 %%
@@ -268,7 +269,7 @@ accountid() ->
 %%============================================================================
 
 %%%---------------------------------------------------------------------------
--spec invoke( Handler :: module(), Event :: binary(),
+-spec invoke( Handler :: atom(), Event :: any(),
               EventHdrs :: list() ) -> {ok, term()} | {handled|unhandled, term()}.
 %%%---------------------------------------------------------------------------
 %%
@@ -315,8 +316,8 @@ invoke_exec( Handler, Event, Context ) ->
         % both top level handler and we can can call success/fail
         throw:{?MODULE, result, JsonMap} -> {ok, JsonMap};
         throw:{?MODULE, failure, JsonMap} -> {handled, JsonMap};
-        Type:Reason ->
-            Trace = erlang:get_stacktrace(),
+        ?EXCEPTION(Type, Reason, Stacktrace) ->
+            Trace = ?GET_STACK(Stacktrace),
             Message = format( "terminated with exception {~p, ~p}", [Type, Reason] ),
             message_send( format( "~s with trace ~p", [Message, Trace] ) ),
             Response = #{errorType => 'HandlerFailure',
@@ -381,6 +382,7 @@ complete( #{success := Response}) ->
 complete( #{errorType := _} = Response) ->
     complete( failure, Response).
 
+-spec complete(Type:: failure | result, Response :: map()) -> no_return().
 complete( Type, Response ) ->
     throw( {?MODULE, Type, Response} ).
 

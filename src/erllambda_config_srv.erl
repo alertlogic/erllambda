@@ -17,6 +17,7 @@
 -export([start_link/0]).
 
 -include("erllambda.hrl").
+-include("exception.hrl").
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
@@ -27,7 +28,7 @@
 -record(cv, {
           key :: any(),
           value :: any(),
-          expire :: pos_integer()
+          expire :: undefined | pos_integer()
 }).
 
 %%******************************************************************************
@@ -152,9 +153,8 @@ serialize_run( Key, Generate ) ->
                                try
                                    Generate()
                                catch
-                                   Type:Reason ->
-                                       Trace = erlang:get_stacktrace(),
-                                       {error, {exception, Type, Reason, Trace}}
+                                   ?EXCEPTION(Type, Reason, Stacktrace) ->
+                                       {error, {exception, Type, Reason, ?GET_STACK(Stacktrace)}}
                                end,
                            Message = {complete, self(), Key, Result},
                            gen_server:cast( Parent, Message )

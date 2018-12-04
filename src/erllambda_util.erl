@@ -163,16 +163,13 @@ accountid_meta() ->
         {ok, #{<<"accountId">> := Accountid}} -> Accountid;
         Otherwise -> Otherwise
     end.
-            
-accountid_sts() -> accountid_sts( config([<<"sts">>]) ).
 
-accountid_sts( undefined ) -> undefined;
-accountid_sts( Config ) -> 
-    case erlcloud_sts:get_caller_identity( Config ) of
-        {ok, Proplists} ->
-            to_binary( proplists:get_value( account, Proplists ) );
-        _ -> undefined
-    end.
+accountid_sts() -> accountid_sts( config([sts]) ).
+
+accountid_sts( Config ) ->
+    {ok, Proplists} = erlcloud_sts:get_caller_identity( Config ),
+    to_binary( proplists:get_value( account, Proplists ) ).
+
 
 
 %%------------------------------------------------------------------------------
@@ -241,7 +238,7 @@ config( Services ) -> config( region(), [{services, Services}] ).
 
     
 %%------------------------------------------------------------------------------
--spec config( Region :: region(), Options :: [option()] ) -> #aws_config{}.
+-spec config( Region :: region(), Options :: [option()] ) -> #aws_config{} | undefined.
 %%------------------------------------------------------------------------------
 %% @doc Generate and cache an erlcloud configuration
 %%
@@ -309,8 +306,7 @@ config( Region, Options ) ->
         {ok, Result} -> Result;
         {error, not_found} ->
             Generate = config_generate( Key, Region, Options ),
-            erllambda_config_srv:serialize( Region, Generate );
-        Otherwise -> Otherwise
+            erllambda_config_srv:serialize( Region, Generate )
     end.
 
 config_generate( Key, Region, Options ) ->
