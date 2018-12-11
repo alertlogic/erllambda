@@ -350,12 +350,12 @@ invoke_maybe_update_credentials(Value, Context, Index, Config) ->
     end.
 
 invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
-                             <<"AWS_SECRET_ACCESS_KEY">> := Key,
-                             <<"AWS_SESSION_TOKEN">> := Token }) ->
+                             <<"AWS_SECRET_ACCESS_KEY">> := Key} = Context) ->
 %%TODO need to define expiration
 %%                             <<"x-amz-deadline-ns">> := Expire}) ->
 %%                             <<"AWS_CREDENTIAL_EXPIRE_TIME">> := Expire
 
+    Token = maps:get(<<"AWS_SESSION_TOKEN">>, Context, undefined),
     Config = #aws_config{ access_key_id = erllambda_util:to_list(Id),
                           secret_access_key = erllambda_util:to_list(Key),
                           security_token = erllambda_util:to_list(Token),
