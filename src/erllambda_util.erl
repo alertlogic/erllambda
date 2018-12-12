@@ -322,11 +322,7 @@ config_refresh( Key, Region, Options ) ->
 
 config_generate( Key, Region, Options, Refresh ) ->
     Profile = list_to_atom( os:getenv( "PROFILE", "default" ) ),
-    {ok, Config} = case application:get_env( erllambda, config ) of
-                       {ok, undefined} ->
-                           erlcloud_aws:auto_config( [{profile, Profile}] );
-                       {ok, _} = Predefined -> Predefined
-                   end,
+    {ok, Config} = erlcloud_aws:auto_config( [{profile, Profile}] ),
     config_finalize( Key, Region, Config, Options, Refresh ).
 
 config_finalize( Key, Region, Config, Options, Refresh ) ->
@@ -354,7 +350,8 @@ config_assume( Role, ExtId, Key, Region, Config, Options, Refresh ) ->
 
 config_finalize_( Key, Region, Config, Options, Refresh ) ->
     Services = proplists:get_value( services, Options, [] ),
-    NewConfig = config_regionalize_(Config, Region, Services),
+    RegionConfig = config_regionalize_(Config, Region, Services),
+    NewConfig = erlcloud_aws:default_config_override(RegionConfig),
     ExpireTsSec = context_config_expire( Config ),
     RefreshTsMs = (ExpireTsSec * 1000) - ?AWSEVICT_MSECS,
     erllambda_config_srv:set( Key, NewConfig, ExpireTsSec ),

@@ -1,6 +1,4 @@
--module(erllambda_SUITE).
-
--include_lib("erlcloud/include/erlcloud_aws.hrl").
+-module(erllambda_config_SUITE).
 
 -include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").
@@ -23,10 +21,19 @@ suite() ->
 init_per_suite(Config) ->
     AWSConfig = erllambda_ct:init_aws_env(),
     application:load(erllambda),
-    application:set_env(erllambda, handler_module, erllambda_proxy_handler),
+    application:set_env(erllambda, handler_module, erllambda_inspect_handler),
     application:set_env(erllambda, print_env, false),
+    ErlcloudConfig =
+        [{ddb_host, "localhost"},
+         {ddb_scheme, "http://"}],
+    OldAppEnv = erllambda_ct:set_app_env([{erlcloud, aws_config, ErlcloudConfig}]),
     {ok, _} = application:ensure_all_started(erllambda),
-    AWSConfig ++ Config.
+    lists:append(
+      [AWSConfig,
+       [{old_app_env, OldAppEnv}],
+       ErlcloudConfig,
+       Config]).
+
 
 %%--------------------------------------------------------------------
 %% @spec end_per_suite(Config0) -> term() | {save_config,Config1}
@@ -36,7 +43,9 @@ init_per_suite(Config) ->
 end_per_suite(Config) ->
     application:stop(erllambda),
     application:unload(erllambda),
-    erllambda_ct:destruct_aws_env(Config).
+    erllambda_ct:destruct_aws_env(Config),
+    OldAppEnv = ?config(old_app_env, Config),
+    erllambda_ct:set_app_env(OldAppEnv).
 
 %%--------------------------------------------------------------------
 %% @spec init_per_group(GroupName, Config0) ->
@@ -46,6 +55,14 @@ end_per_suite(Config) ->
 %% Reason = term()
 %% @end
 %%--------------------------------------------------------------------
+init_per_group(new_access_key_id, Config) ->
+    NewKeyId = "c4f806e027874b93",
+    OldKeyId = ?config(access_key_id, Config),
+    ?assertNotEqual(OldKeyId, NewKeyId),
+    EnvConf = erllambda_ct:putenv([{"AWS_ACCESS_KEY_ID", NewKeyId}]),
+    EnvConf ++ Config;
+init_per_group(aws_config_cached, Config) ->
+    [{access_key_id, erllambda_ct:test_key_id()} | Config];
 init_per_group(_GroupName, Config) ->
     Config.
 
@@ -56,6 +73,8 @@ init_per_group(_GroupName, Config) ->
 %% Config0 = Config1 = [tuple()]
 %% @end
 %%--------------------------------------------------------------------
+end_per_group(new_access_key_id, Config) ->
+    erllambda_ct:restore_env(Config);
 end_per_group(_GroupName, _Config) ->
     ok.
 
@@ -95,7 +114,11 @@ end_per_testcase(_TestCase, _Config) ->
 %% @end
 %%--------------------------------------------------------------------
 groups() ->
-    [].
+    [{aws_config_cached, [sequence],
+      [test_aws_config_access_key_id,
+       {group, new_access_key_id}]},
+     {new_access_key_id, [sequence],
+      [test_aws_config_access_key_id]}].
 
 %%--------------------------------------------------------------------
 %% @spec all() -> GroupsAndTestCases | {skip,Reason}
@@ -106,7 +129,8 @@ groups() ->
 %% @end
 %%--------------------------------------------------------------------
 all() ->
-    [test_fibonachi].
+    [{group, aws_config_cached},
+     test_ddb_config_from_app_config].
 
 %%%===================================================================
 %%% TestCases
@@ -121,13 +145,16 @@ all() ->
 %% Comment = term()
 %% @end
 %%--------------------------------------------------------------------
-test_fibonachi(_Config) ->
-    erllambda_proxy_handler:delegate_to(erllambda_fibonachi_handler),
-    {ok, #{<<"sequence">> := [0, 1, 1, 2, 3, 5]}} =
-        lists:foldl(
-          fun(_, {ok, Params}) -> erllambda_aws_runtime:call(Params) end,
-          {ok, #{<<"sequence">> => []}},
-          lists:seq(0, 5)).
+test_aws_config_access_key_id(Config) ->
+    KeyId = list_to_binary(?config(access_key_id, Config)),
+    {ok, #{<<"access_key_id">> := KeyId}} =
+        erllambda_aws_runtime:call(#{<<"what">> => <<"erllambda_config">>}).
+
+test_ddb_config_from_app_config(Config) ->
+    DDBHost = list_to_binary(?config(ddb_host, Config)),
+    DDBScheme = list_to_binary(?config(ddb_scheme, Config)),
+    {ok, #{<<"ddb_host">> := DDBHost, <<"ddb_scheme">> := DDBScheme}} =
+        erllambda_aws_runtime:call(#{<<"what">> => <<"erllambda_config">>}).
 
 %%%===================================================================
 %%% Internal functions
