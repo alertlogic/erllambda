@@ -20,7 +20,7 @@ init(#{method := <<"POST">>} = Req, Opts) ->
             ok = erllambda_aws_runtime_srv:response_error(ReqId, ResponseResult)
     end,
     Headers = #{<<"content-type">> => <<"application/json">>},
-    Response = jiffy:encode(#{<<"status">> => <<"Accepted">>}),
+    Response = jsone:encode(#{<<"status">> => <<"Accepted">>}),
     Req2 = cowboy_req:reply(202, Headers, Response, Req1),
     {ok, Req2, Opts};
 init(Req0, Opts) ->
@@ -33,7 +33,7 @@ init(Req0, Opts) ->
 
 maybe_decode_json(Body) ->
     try
-        jiffy:decode(Body, [return_maps])
+        jsone:decode(Body)
     catch
         _:_ ->
             Body

@@ -177,7 +177,7 @@ mock_lhttpc_request(
   Test, "http://169.254.169.254/latest/dynamic/instance-identity/document",
   get, _, <<>>, _Timeout, _Options )
   when Test =:= test_region_instancedoc; Test =:= test_accountid_instancedoc ->
-    Body = jiffy:encode( #{devpayProductCodes => null,
+    Body = jsone:encode( #{devpayProductCodes => null,
                          availabilityZone => <<"us-east-1d">>,
                          privateIp => <<"10.158.112.84">>,
                          version => <<"2010-08-31">>,
