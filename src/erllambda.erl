@@ -282,7 +282,6 @@ invoke( Handler, Event, EventHdrs )  ->
             % construct the contexts on the fly
             % binaries all the way down
             Context = maps:merge(os_env2map(), hdr2map(EventHdrs)),
-            invoke_credentials(Context),
             Res = invoke_exec(Handler, Event, Context),
             Parent ! {handle, Res}
         end,
@@ -325,42 +324,6 @@ invoke_exec( Handler, Event, Context ) ->
                 stackTrace => format_stack(Trace)},
             {unhandled, Response}
     end.
-
-invoke_credentials(Context) ->
-    case application:get_env(erllambda, config) of
-        {ok, #aws_config{} = AWSConfig} ->
-            invoke_credentials(Context, AWSConfig);
-        _ ->
-            invoke_update_credentials(Context)
-    end.
-
-invoke_credentials(#{<<"AWS_SESSION_TOKEN">> := Token} = Context, Config) ->
-    invoke_maybe_update_credentials(Token, Context, #aws_config.security_token, Config);
-invoke_credentials(#{<<"AWS_SECRET_ACCESS_KEY">> := Key} = Context, Config) ->
-    invoke_maybe_update_credentials(Key, Context, #aws_config.secret_access_key, Config);
-invoke_credentials(Context, _) ->
-    invoke_update_credentials(Context).
-
-invoke_maybe_update_credentials(Value, Context, Index, Config) ->
-    case erllambda_util:to_binary(element(Index, Config)) of
-        Value ->
-            ok;
-        _ ->
-            invoke_update_credentials(Context)
-    end.
-
-invoke_update_credentials( #{<<"AWS_ACCESS_KEY_ID">> := Id,
-                             <<"AWS_SECRET_ACCESS_KEY">> := Key,
-                             <<"AWS_SESSION_TOKEN">> := Token }) ->
-%%TODO need to define expiration
-%%                             <<"x-amz-deadline-ns">> := Expire}) ->
-%%                             <<"AWS_CREDENTIAL_EXPIRE_TIME">> := Expire
-
-    Config = #aws_config{ access_key_id = erllambda_util:to_list(Id),
-                          secret_access_key = erllambda_util:to_list(Key),
-                          security_token = erllambda_util:to_list(Token),
-                          expiration = undefined },
-    application:set_env( erllambda, config, Config ).
 
 -spec line_format(io:format(), [term()]) -> iodata() | unicode:charlist().
 line_format(Format, Data) ->

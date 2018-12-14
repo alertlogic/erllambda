@@ -10,15 +10,23 @@
 %%%===================================================================
 
 handle(#{<<"what">> := <<"erllambda_config">>}, _Context) ->
-    {ok, AWSConfig} = application:get_env( erllambda, config ),
-    ConfigMap =
-        #{access_key_id     => list_to_binary(AWSConfig#aws_config.access_key_id),
-          secret_access_key => list_to_binary(AWSConfig#aws_config.secret_access_key),
-          security_token    => list_to_binary(AWSConfig#aws_config.security_token),
-          expiration        => AWSConfig#aws_config.expiration},
-    {ok, ConfigMap}.
+    AWSConfig = erllambda:config(),
+    AWSMap = erllambda_ct:record_to_map(AWSConfig),
+    SerializableMap = serializable_map(AWSMap),
+    {ok, SerializableMap}.
 
 
 %%%===================================================================
 %%% Private functions
 %%%===================================================================
+serializable_map(Map) ->
+    maps:map(fun serializable_map/2, Map).
+
+serializable_map(_Key, String) when is_list(String) ->
+    list_to_binary(String);
+serializable_map(_Key, Fun) when is_function(Fun) ->
+    list_to_binary(erlang:fun_to_list(Fun));
+serializable_map(_Key, Tuple) when is_tuple(Tuple) ->
+    serializable_map(erllambda_ct:record_to_map(Tuple));
+serializable_map(_Key, Value) ->
+    Value.
