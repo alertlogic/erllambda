@@ -303,7 +303,7 @@ invoke( Handler, Event, EventHdrs )  ->
 
 invoke_exec( Handler, Event, Context ) ->
     try
-        case Handler:handle(jiffy:decode(Event, [return_maps]), Context ) of
+        case Handler:handle(jsone:decode(Event), Context ) of
             ok -> succeed( "completed successfully" );
             {ok, Result} -> succeed( Result );
             {error, ErrResult} -> fail( ErrResult );

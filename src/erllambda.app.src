@@ -9,7 +9,7 @@
     stdlib,
     lhttpc,
     erlcloud,
-    jiffy
+    jsone
    ]},
   {env,
    [

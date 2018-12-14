@@ -221,7 +221,7 @@ set_context(ReqId) ->
     ).
 
 encode_body(Body) when is_binary(Body) -> Body;
-encode_body(Body) when is_map(Body) -> jiffy:encode(Body).
+encode_body(Body) when is_map(Body) -> jsone:encode(Body).
 
 
 month(1) -> 'Jan';

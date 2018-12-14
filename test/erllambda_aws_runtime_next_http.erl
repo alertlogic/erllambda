@@ -15,7 +15,7 @@ init(#{method := <<"GET">>} = Req0, Opts) ->
                 <<"lambda-runtime-deadline-ms">> =>
                     integer_to_binary(os:system_time(millisecond) + 10000),
                 <<"content-type">> => <<"application/json">>},
-    Response = jiffy:encode(Item),
+    Response = jsone:encode(Item),
     Req = cowboy_req:reply(200, Headers, Response, Req0),
     {ok, Req, Opts};
 init(Req0, Opts) ->

@@ -408,7 +408,7 @@ instance_doc_() ->
     end.
 
 instance_doc( Body ) ->
-    try jiffy:decode( Body, [return_maps] ) of
+    try jsone:decode( Body ) of
         Json ->
             Result = {ok, Json},
             ExpireTsMsec = erlang:system_time( millisecond ) + (900 * 1000),
