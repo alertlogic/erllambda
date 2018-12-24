@@ -40,13 +40,13 @@
 %%============================================================================
 %%%---------------------------------------------------------------------------
 -callback handle( Event :: map(), Context :: map() ) ->
-    ok | {ok, iolist() | map()} | {error, iolist()}.
+    ok | {ok, iodata() | map()} | {error, iodata()}.
 
 %%============================================================================
 %% API Functions
 %%============================================================================
 %%%---------------------------------------------------------------------------
--spec succeed(Value :: iolist() | map()) -> no_return().
+-spec succeed(Value :: iodata() | map()) -> no_return().
 %%%---------------------------------------------------------------------------
 %% @doc Complete processing with success
 %%
@@ -60,7 +60,7 @@ succeed( Format, Values ) ->
 
 
 %%%---------------------------------------------------------------------------
--spec fail( Message :: iolist() ) -> no_return().
+-spec fail( Message :: iodata() ) -> no_return().
 %%%---------------------------------------------------------------------------
 %% @doc Complete a processing with failure
 %%
@@ -73,7 +73,7 @@ fail( Format, Values ) ->
 
 
 %%%---------------------------------------------------------------------------
--spec message( Message :: iolist() ) -> ok.
+-spec message( Message :: iodata() ) -> ok.
 %%%---------------------------------------------------------------------------
 %% @doc Send an informational message to be logged
 %%
@@ -97,7 +97,7 @@ message( Format, Values ) ->
 
 
 %%%---------------------------------------------------------------------------
--spec message_ctx( ReqId :: binary() | map(), Message :: iolist() ) -> ok.
+-spec message_ctx( ReqId :: binary() | map(), Message :: iodata() ) -> ok.
 %%%---------------------------------------------------------------------------
 %% @doc Send an informational message to be logged
 %%
