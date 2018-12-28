@@ -112,6 +112,28 @@ Current testing has shown that it does not make sense to run Erlang
 on AWS Lambda functions with less then 256MB RAM.
 Having 512-1024MB is optimal for most of the use cases.
 
+### Configuration
+
+#### Code loading mode
+
+Depending on a use case, erlang [code loading mode](http://erlang.org/doc/man/code.html)
+[can](https://github.com/alertlogic/erllambda/issues/46) significantly affect execution performance.
+
+To switch between `interactive` or `embedded` modes set `CODE_LOADING_MODE` environment variable on
+AWS Lambda function creation step with a desired value:
+
+<pre>
+aws --profile default --region &lt;region&gt; \
+ lambda create-function \
+ --function-name &lt;your_function&gt; \
+ --memory-size 1024 \
+ --handler &lt;your_function_module_name&gt; \
+ --zip-file fileb://_build/prod/&lt;your_function&gt;-0.0.0.zip \
+ <b>--environment "Variables={CODE_LOADING_MODE=interactive}"</b>
+ --runtime provided \
+ --role &lt;role-arn&gt;
+</pre>
+
 ### Basic Deployment
 
 See [Erllambda Example](https://github.com/alertlogic/erllambda_example) for the step-by-step procedure to deploy your Lambda.
