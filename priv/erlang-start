@@ -34,6 +34,9 @@ PROGNAME=appmod;
 export ERL_CRASH_DUMP="/dev/null"
 CODE_LOADING_MODE="${CODE_LOADING_MODE:-embedded}"
 
+# A vile, temporary hack whilst I investigate a cleaner approach.
+export MMDB_DIR="$(find /var/task -name MMDB)"
+
 replace_os_vars() {
     awk '{
         while(match($0,"[$]{[^}]*}")) {
