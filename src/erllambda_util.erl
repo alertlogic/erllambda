@@ -306,7 +306,7 @@ config( Region, Options ) ->
         {ok, Result} -> Result;
         {error, not_found} ->
             Generate = config_generate( Key, Region, Options ),
-            erllambda_config_srv:serialize( Region, Generate )
+            erllambda_config_srv:serialize( Key, Generate )
     end.
 
 config_generate( Key, Region, Options ) ->
