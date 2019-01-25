@@ -3,6 +3,7 @@ erllambda
 
 Enable AWS Lambda functions to be written in Erlang
 
+![logo](doc/pics/erllambda_logo_small.png)
 
 # Overview
 
