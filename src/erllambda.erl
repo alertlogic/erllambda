@@ -241,7 +241,7 @@ config(Region, Options) ->
     erllambda_util:config(Region, Options).
 
 %%%---------------------------------------------------------------------------
--spec environ() -> binary().
+-spec environ() -> binary() | undefined.
 %%%---------------------------------------------------------------------------
 %% @doc The default region
 %%
