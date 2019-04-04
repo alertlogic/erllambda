@@ -5,6 +5,9 @@
 %% @copyright 2018 Alert Logic, Inc.
 %%%---------------------------------------------------------------------------
 
+-ifndef(__ERLLAMBDA_HRL__).
+-define(__ERLLAMBDA_HRL__, 1).
+
 %%******************************************************************************
 %% Type Definitions
 %%******************************************************************************
@@ -27,3 +30,9 @@
 -define(DAY_MSECS, 86400000).
 -define(AWSEVICT_SECS, (application:get_env(erllambda, default_role_evict_sec, 60))).
 -define(AWSEVICT_MSECS, (?AWSEVICT_SECS * 1000)).
+
+-define(LOG(Msg), erllambda:message("~p:~p ~s", [?MODULE, ?LINE, Msg])).
+-define(LOG(Fmt, Args), erllambda:message("~p:~p " ++ Fmt, [?MODULE, ?LINE | Args])).
+
+
+-endif.
