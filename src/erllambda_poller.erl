@@ -88,12 +88,14 @@ init([]) ->
     Handler = handler_module(),
     erllambda:print_env(),
     erllambda:message("initializing ~p for handler ~p", [?MODULE, Handler]),
-    {ok, #state{
-          runtime_addr = Addr,
-          handler = Handler,
-          %% give it some time to start off
-          timer_ref = erlang:send_after(100, self(), poll)
-    }}.
+    State = #state{runtime_addr = Addr, handler = Handler},
+    case init:notify_when_started(self()) of
+        started ->
+            erllambda:message("Init had already started"),
+            {ok, State#state{timer_ref = erlang:send_after(0, self(), poll)}};
+        _ ->
+            {ok, State}
+    end.
 
 %% @private
 handle_call(What, _From, State) ->
@@ -109,6 +111,10 @@ handle_cast(Info, State) ->
 handle_info(poll, #state{runtime_addr = undefined} = State) ->
     erllambda:message("Runtime API address not set - not in AWS?"),
     {noreply, State};
+handle_info({init, started}, State) ->
+    erllambda:message("Init has just started"),
+    State1 = State#state{timer_ref = erlang:send_after(0, self(), poll)},
+    {noreply, State1};
 handle_info(poll, #state{handler = Handler} = State) ->
     %% SYNC to RUNTIME
     %% container freeze/thaw happens here
