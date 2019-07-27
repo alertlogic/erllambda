@@ -15,12 +15,6 @@
 -behaviour(gen_event).
 
 %% ------------------------------------------------------------------
-%% API Function Exports
-%% ------------------------------------------------------------------
-
--export([start_link/0]).
-
-%% ------------------------------------------------------------------
 %% gen_event Function Exports
 %% ------------------------------------------------------------------
 
@@ -30,16 +24,6 @@
          handle_info/2,
          terminate/2,
          code_change/3]).
-
-%% ------------------------------------------------------------------
-%% API Function Definitions
-%% ------------------------------------------------------------------
-
-start_link() ->
-    error_logger:tty(false),
-    % add us to error logger
-    error_logger:add_report_handler(erllambda_error_handler),
-    gen_event:start_link({local, ?MODULE}).
 
 %% ------------------------------------------------------------------
 %% gen_event Function Definitions

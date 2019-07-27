@@ -20,8 +20,11 @@
 
 start(_StartType, _StartArgs) ->
     Sup = erllambda_sup:start_link(),
+    error_logger:tty(false),
+    error_logger:add_report_handler(erllambda_error_handler),
     Sup.
 
 %%--------------------------------------------------------------------
 stop(_State) ->
+    error_logger:delete_report_handler(erllambda_error_handler),
     ok.
