@@ -31,7 +31,6 @@ ERTS_LIB_DIR="${ERTS_DIR}/lib"
 export NATIVELIB_DIR=${ERTS_LIB_DIR}
 export REL_NAME="$(basename $SCRIPT)"
 PROGNAME=appmod;
-export ERL_CRASH_DUMP="/dev/null"
 CODE_LOADING_MODE="${CODE_LOADING_MODE:-embedded}"
 
 replace_os_vars() {
@@ -56,6 +55,10 @@ export ROOTDIR="$RELEASE_ROOT_DIR"
 export BINDIR="$ERTS_DIR/bin"
 export EMU="beam"
 export LD_LIBRARY_PATH="${ERTS_DIR}/lib:${LD_LIBRARY_PATH}"
+
+# disable Erlang crash dumps and Linux core dumps
+export ERL_CRASH_DUMP="/dev/null"
+ulimit -c 0
 
 # Store passed arguments since they will be erased by `set`
 ARGS="$@"
