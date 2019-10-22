@@ -23,6 +23,7 @@ init_per_suite(Config) ->
     application:set_env(erllambda, handler_module, erllambda_logging_handler),
     application:set_env(erllambda, print_env, false),
     {ok, _} = application:ensure_all_started(erllambda),
+    erllambda_io_srv:start(),
     AWSConfig ++ Config.
 
 %%--------------------------------------------------------------------
@@ -31,6 +32,7 @@ init_per_suite(Config) ->
 %% @end
 %%--------------------------------------------------------------------
 end_per_suite(Config) ->
+    erllambda_io_srv:stop(),
     application:stop(erllambda),
     application:unload(erllambda),
     erllambda_ct:destruct_aws_env(Config).
@@ -76,6 +78,7 @@ init_per_testcase(_TestCase, Config) ->
 %% @end
 %%--------------------------------------------------------------------
 end_per_testcase(_TestCase, _Config) ->
+    erllambda_io_srv:flush(),
     ok.
 
 %%--------------------------------------------------------------------
@@ -103,11 +106,14 @@ groups() ->
 %% @end
 %%--------------------------------------------------------------------
 all() ->
-    [test_no_args_messages].
+    [test_no_args_messages,
+     test_bad_format_do_not_remove_error_handler].
 
 %%%===================================================================
 %%% TestCases
 %%%===================================================================
+
+-define(invoke_handler, invoke_handler(?FUNCTION_NAME)).
 
 %%--------------------------------------------------------------------
 %% @spec TestCase(Config0) ->
@@ -119,10 +125,30 @@ all() ->
 %% @end
 %%--------------------------------------------------------------------
 test_no_args_messages(_Config) ->
-    {ok, _} = erllambda_aws_runtime:call(#{}),
+    ?invoke_handler,
     ErrorLoggerHandlers = gen_event:which_handlers(error_logger),
-    true = lists:member(erllambda_error_handler, ErrorLoggerHandlers).
+    true = lists:member(erllambda_error_handler, ErrorLoggerHandlers),
+    {ok,
+     ["Starting logs test\n",
+      "This line should not break logging\n",
+      "This and any further logs should be printed\n",
+      "erllambda_logging_handler:20 Using LOG macro should give module and line numbers in the logs\n",
+      "erllambda_logging_handler:21 LOG macro using format 42\n"]}
+        = erllambda_io_srv:list_requests().
+
+test_bad_format_do_not_remove_error_handler(_Config) ->
+    ?invoke_handler,
+    ErrorLoggerHandlers = gen_event:which_handlers(error_logger),
+    true = lists:member(erllambda_error_handler, ErrorLoggerHandlers),
+    {ok, ["Good format\n",
+          "INFO: \"Bad format\" - [any]\n",
+          "Good format\n"]}
+        = erllambda_io_srv:list_requests().
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+invoke_handler(Type) ->
+    {ok, _} = erllambda_aws_runtime:call(#{type => Type}),
+    %% make sure that error handler processed the event
+    gen_event:sync_notify(error_logger, sync).

@@ -15,12 +15,6 @@
 -behaviour(gen_event).
 
 %% ------------------------------------------------------------------
-%% API Function Exports
-%% ------------------------------------------------------------------
-
--export([start_link/0]).
-
-%% ------------------------------------------------------------------
 %% gen_event Function Exports
 %% ------------------------------------------------------------------
 
@@ -32,16 +26,6 @@
          code_change/3]).
 
 %% ------------------------------------------------------------------
-%% API Function Definitions
-%% ------------------------------------------------------------------
-
-start_link() ->
-    error_logger:tty(false),
-    % add us to error logger
-    error_logger:add_report_handler(erllambda_error_handler),
-    gen_event:start_link({local, ?MODULE}).
-
-%% ------------------------------------------------------------------
 %% gen_event Function Definitions
 %% ------------------------------------------------------------------
 
@@ -49,19 +33,19 @@ init([]) ->
     {ok, #{}}.
 
 %general cae of logs
-handle_event({EventType, _Gleader,
+handle_event({EventType, GLeader,
              {_Pid, Format, Data}}, State)
         when EventType =:= error;
              EventType =:= warning_msg;
              EventType =:= info_msg ->
-    output(Format, Data),
+    output(GLeader, EventType, Format, Data),
     {ok, State};
-handle_event({EventType, _Gleader,
+handle_event({EventType, GLeader,
              {_Pid, _Type, Report}}, State)
         when EventType =:= error_report;
              EventType =:= warning_report;
              EventType =:= info_report ->
-    output("~p", [Report]),
+    output(GLeader, EventType, "~p", [Report]),
     {ok, State};
 handle_event(_, State) ->
     {ok, State}.
@@ -84,8 +68,27 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 
-output(Format, Data) ->
-    io:fwrite(string:concat(erllambda:line_format(Format, Data), "\n")).
+output(GLeader, EventType, Format, Data) ->
+    io:fwrite(GLeader, format_event(EventType, Format, Data), []).
+
+format_event(EventType, Format, Data) ->
+    try format(Format, Data) of
+        Str ->
+            Str
+    catch
+        _:_ ->
+            format("~s: ~p - ~p", [event_header(EventType), Format, Data])
+    end.
+
+format(Format, Data) ->
+    string:concat(erllambda:line_format(Format, Data), "\n").
+
+event_header(error) -> "ERROR";
+event_header(warning_msg) ->  "WARNING";
+event_header(info_msg) -> "INFO";
+event_header(error_report) -> "ERROR REPORT";
+event_header(warning_report) -> "WARNING REPORT";
+event_header(info_report) -> "INFO REPORT".
 
 %%====================================================================
 %% Test Functions
@@ -94,9 +97,23 @@ output(Format, Data) ->
 
 output_test_() ->
     [
-     ?_assertEqual(ok, output("~s", ["arg"])),
-     ?_assertEqual(ok, output("message ~s", ["arg"])),
-     ?_assertEqual(ok, output("message", []))
+     ?_assertEqual(ok, output(group_leader(), error, "~s", ["arg"])),
+     ?_assertEqual(ok, output(group_leader(), error, "message ~s", ["arg"])),
+     ?_assertEqual(ok, output(group_leader(), error, "message", [])),
+     ?_assertEqual(ok, output(group_leader(), error, "Bad format", [any]))
+    ].
+
+format_event_test_() ->
+    [
+     ?_assertEqual(
+        "message: arg\n",
+        format_event(info_msg, "message: ~s", ["arg"])),
+     ?_assertEqual(
+        "INFO: \"message\" - [any]\n",
+        format_event(info_msg, "message", [any])),
+     ?_assertEqual(
+        "ERROR: \"message\" - [any]\n",
+        format_event(error, "message", [any]))
     ].
 
 -endif.
