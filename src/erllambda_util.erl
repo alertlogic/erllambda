@@ -208,7 +208,7 @@ environ_config() ->
 
 
 %%------------------------------------------------------------------------------
--spec config() -> #aws_config{}.
+-spec config() -> #aws_config{} | {error, term()}.
 %%------------------------------------------------------------------------------
 %% @doc Generate and cache an erlcloud configuration
 %%
@@ -222,7 +222,7 @@ config() -> config( region(), [] ).
 
     
 %%------------------------------------------------------------------------------
--spec config( Services :: [service()] ) -> #aws_config{}.
+-spec config( Services :: [service()] ) -> #aws_config{} | {error, term()}.
 %%------------------------------------------------------------------------------
 %% @doc Generate and cache an erlcloud configuration
 %%
@@ -238,7 +238,7 @@ config( Services ) -> config( region(), [{services, Services}] ).
 
     
 %%------------------------------------------------------------------------------
--spec config( Region :: region(), Options :: [option()] ) -> #aws_config{} | undefined.
+-spec config( Region :: region(), Options :: [option()] ) -> #aws_config{} | undefined | {error, term()}.
 %%------------------------------------------------------------------------------
 %% @doc Generate and cache an erlcloud configuration
 %%
