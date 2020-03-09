@@ -57,7 +57,7 @@ The `erllambda` application is built using [`rebar3`](http://www.rebar3.org),
 and all other dependencies are automatically pulled in when `erllambda` is used in other projects
 `rebar.config`.
 
-As part of the Erlang/Elixir package for AWS Lambda following are used:
+The following are used as part of the Erlang/Elixir package for AWS Lambda:
  - [`erllambda`](https://github.com/alertlogic/erllambda) - this repo. 
   Core integration point with AWS Lambda Runtime API
  - [`rebar3_erllambda`](https://github.com/alertlogic/rebar3_erllambda) - 
