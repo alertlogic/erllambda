@@ -302,7 +302,7 @@ invoke( Handler, Event, EventHdrs )  ->
 
 invoke_exec( Handler, Event, Context ) ->
     try
-        case Handler:handle(jsone:decode(Event), Context ) of
+        case Handler:handle(decode(Event), Context ) of
             ok -> succeed( "completed successfully" );
             {ok, Result} -> succeed( Result );
             {error, ErrResult} -> fail( ErrResult );
@@ -324,6 +324,11 @@ invoke_exec( Handler, Event, Context ) ->
                 stackTrace => format_stack(Trace)},
             {unhandled, Response}
     end.
+
+decode(Event) when is_binary(Event) ->
+    jsone:decode(Event);
+decode(Event) when is_map(Event) ->
+    Event.
 
 -spec line_format(io:format(), [term()]) -> iodata() | unicode:charlist().
 line_format(Format, Data) ->
