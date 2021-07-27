@@ -20,11 +20,21 @@
 
 start(_StartType, _StartArgs) ->
     Sup = erllambda_sup:start_link(),
-    error_logger:tty(false),
-    error_logger:add_report_handler(erllambda_error_handler),
+    case application:get_env(erllambda, enable_error_handler) of
+        {ok, true} ->
+            error_logger:tty(false),
+            error_logger:add_report_handler(erllambda_error_handler);
+        _ ->
+            ok
+    end,
     Sup.
 
 %%--------------------------------------------------------------------
 stop(_State) ->
-    error_logger:delete_report_handler(erllambda_error_handler),
+    case application:get_env(erllambda, enable_error_handler) of
+        {ok, true} ->
+            error_logger:delete_report_handler(erllambda_error_handler);
+        _ ->
+            ok
+    end,
     ok.
