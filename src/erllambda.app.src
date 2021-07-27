@@ -38,7 +38,10 @@
     {handler_spawn_opts, [
      {min_bin_vheap_size, 2487399},
      {min_heap_size, 2487399}
-    ]}
+    ]},
+    %% defines whether or not "erllambda_error_handler"
+    %% should be added on startup to error_logger
+    {enable_error_handler, true}
    ]},
   {modules, []},
   {licenses, ["MIT"]},
