@@ -14,7 +14,7 @@
   {env,
    [
     %% Print Env during Init or not
-    {print_env, true},
+    {print_env, false},
     %% execution AWS region, typically only defined by some controlling
     %% framework.
     {region, undefined},
