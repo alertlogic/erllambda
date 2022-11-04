@@ -12,10 +12,6 @@ $(mkdir -p "${RUN_DIR}/checkpointfs")
 $(mkdir -p "${RUN_DIR}/tmpfs")
 $(mkdir -p "${RUN_DIR}/ramfs")
 
-echo "OpenSSL is $(openssl version)"
-# ciphers=$(openssl ciphers 'ALL:eNULL' | sed -e 's/:/ /g')
-# echo "OpenSSL cyphers are $ciphers"
-
 echo "starting ErlangVM"
 
 SCRIPT=$(readlink $0 || true)
@@ -26,7 +22,15 @@ SCRIPT_DIR="$(cd `dirname "$SCRIPT"` && pwd -P)"
 RELEASE_ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 REL_DIRS=(${RELEASE_ROOT_DIR}/releases/[0-9]*)
 REL_DIR=${REL_DIRS[-1]}
-ERTS_DIR=(${RELEASE_ROOT_DIR}/erts-*)
+# account for potential Erlang Lambda Layer
+export ERTS_PATH="/opt/erts-*"
+if [ -d ${ERTS_PATH} ]; then
+    echo "starting ErlangVM from a layer at ${ERTS_PATH}"
+    ERTS_DIR=(${ERTS_PATH})
+else
+    echo "starting ErlangVM"
+    ERTS_DIR=(${RELEASE_ROOT_DIR}/erts-*)
+fi;
 ERTS_LIB_DIR="${ERTS_DIR}/lib"
 export NATIVELIB_DIR=${ERTS_LIB_DIR}
 export REL_NAME="$(basename $SCRIPT)"
