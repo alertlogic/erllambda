@@ -12,8 +12,6 @@ $(mkdir -p "${RUN_DIR}/checkpointfs")
 $(mkdir -p "${RUN_DIR}/tmpfs")
 $(mkdir -p "${RUN_DIR}/ramfs")
 
-echo "starting ErlangVM"
-
 SCRIPT=$(readlink $0 || true)
 if [ -z $SCRIPT ]; then
     SCRIPT=$0
