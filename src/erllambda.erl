@@ -126,11 +126,8 @@ message_ctx( ReqId, Format, Values ) when is_binary(ReqId) ->
 -spec metric(MetricName :: string(), MetricValue :: integer(),
              Type :: string(), Tags :: list()) -> ok.
 %%%---------------------------------------------------------------------------
-%% @doc Send custom metrics to Datadog
-%%
-%% This function will send log message from lambda using following format
-%% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|#tag1:value,tag2
-%% where metric_type :: "count" | "gauge" | "histogram"
+%% @doc Send custom metrics to Datadog via method defined in application config
+%% by metrics_method parameter
 %%
 metric(MName) ->
     metric(MName, 1).
@@ -142,29 +139,12 @@ metric(MName, Val, Type, Tags)
         when is_list(MName)
         andalso (Type == "count" orelse Type == "gauge" orelse Type == "histogram")
         andalso is_number(Val) ->
-    NewTags = "#" ++
-        string:join(
-            lists:map(
-                fun ({T,V}) ->
-                        erllambda_util:to_list(T) ++ ":" ++ erllambda_util:to_list(V);
-                    (OtherTag) ->
-                        erllambda_util:to_list(OtherTag)
-                end, Tags
-            ),
-            ","
-        ),
-    Ts = os:system_time(second),
-    Msg = string:join([
-        "MONITORING",
-        erllambda_util:to_list(Ts),
-        erllambda_util:to_list(Val),
-        Type,
-        MName,
-        NewTags
-    ], "|"),
-    message(Msg).
-
-
+    case application:get_env(erllambda, metrics_method) of
+        {ok, statsd} ->
+            metric_by_statsd(MName, Val, Type, Tags);
+        _ ->
+            metric_by_log(MName, Val, Type, Tags)
+    end.
 
 %%%---------------------------------------------------------------------------
 -spec get_remaining_ms(map()) -> pos_integer().
@@ -405,6 +385,43 @@ reformat([], _Width) ->
 
 one_line_it(Text) ->
     re:replace(string:trim(Text), "\r?\n\s*", " ", [{return,list},global,unicode]).
+
+%% This function will send log message from lambda using following format
+%% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|#tag1:value,tag2
+%% where metric_type :: "count" | "gauge" | "histogram"
+metric_by_log(MName, Val, Type, Tags) ->
+    NewTags = "#" ++
+        string:join(
+            lists:map(
+                fun ({T,V}) ->
+                    erllambda_util:to_list(T) ++ ":" ++ erllambda_util:to_list(V);
+                    (OtherTag) ->
+                        erllambda_util:to_list(OtherTag)
+                end, Tags
+            ),
+            ","
+        ),
+    Ts = os:system_time(second),
+    Msg = string:join([
+        "MONITORING",
+        erllambda_util:to_list(Ts),
+        erllambda_util:to_list(Val),
+        Type,
+        MName,
+        NewTags
+    ], "|"),
+    message(Msg).
+
+%% ToDo description
+metric_by_statsd(MName, Val, Type, Tags) ->
+    do_metric_by_statsd(MName, Val, Type, maps:from_list(Tags)).
+
+do_metric_by_statsd(MName, Val, "count", Tags) ->
+    dogstatsd:counter(MName, Val, Tags);
+do_metric_by_statsd(MName, Val, "gauge", Tags) ->
+    dogstatsd:gauge(MName, Val, Tags);
+do_metric_by_statsd(MName, Val, "histogram", Tags) ->
+    dogstatsd:histogram(MName, Val, Tags).
 
 
 %%====================================================================

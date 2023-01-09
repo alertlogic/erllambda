@@ -11,6 +11,10 @@
     erlcloud,
     jsone
    ]},
+  {included_applications,
+   [
+    dogstatsd
+   ]},
   {env,
    [
     %% Print Env during Init or not
@@ -41,7 +45,11 @@
     ]},
     %% defines whether or not "erllambda_error_handler"
     %% should be added on startup to error_logger
-    {enable_error_handler, true}
+    {enable_error_handler, true},
+    %% method to report metrics
+    %% log - report metrics by log message
+    %% statsd - report metrics by statsd client
+    {metrics_method, log}
    ]},
   {modules, []},
   {licenses, ["MIT"]},
