@@ -417,7 +417,9 @@ metric_via_log(MName, Val, Type, Tags) when (Type == "count" orelse Type == "gau
 metric_via_statsd(MName, Val, Type, Tags) when is_list(Tags) ->
     metric_via_statsd(MName, Val, Type, maps:from_list(Tags));
 metric_via_statsd(MName, Val, "count", Tags) when is_map(Tags) ->
-    dogstatsd:counter(MName, Val, Tags);
+    %% When submitting metric via statsd 'count' type turns into 'rate' on Datadog side. Not to break existing metrics
+    %% history on switching between submission methods 'count' metrics are submitted as new ones with '.rate' ending.
+    dogstatsd:counter(MName ++ ".rate", Val, Tags);
 metric_via_statsd(MName, Val, "gauge", Tags) when is_map(Tags) ->
     dogstatsd:gauge(MName, Val, Tags);
 metric_via_statsd(MName, Val, "histogram", Tags) when is_map(Tags) ->
