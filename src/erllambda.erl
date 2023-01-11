@@ -139,7 +139,6 @@ metric(MName, Val, Type) ->
     metric(MName, Val, Type, []).
 metric(MName, Val, Type, Tags)
         when is_list(MName)
-        andalso (Type == "count" orelse Type == "gauge" orelse Type == "histogram")
         andalso is_number(Val) ->
     case application:get_env(erllambda, metrics_method) of
         {ok, statsd} ->
@@ -391,7 +390,7 @@ one_line_it(Text) ->
 %% Sends metric via log message from lambda using following format
 %% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|#tag1:value,tag2
 %% where metric_type :: "count" | "gauge" | "histogram"
-metric_via_log(MName, Val, Type, Tags) ->
+metric_via_log(MName, Val, Type, Tags) when (Type == "count" orelse Type == "gauge" orelse Type == "histogram") ->
     NewTags = "#" ++
         string:join(
             lists:map(
@@ -422,7 +421,11 @@ metric_via_statsd(MName, Val, "count", Tags) when is_map(Tags) ->
 metric_via_statsd(MName, Val, "gauge", Tags) when is_map(Tags) ->
     dogstatsd:gauge(MName, Val, Tags);
 metric_via_statsd(MName, Val, "histogram", Tags) when is_map(Tags) ->
-    dogstatsd:histogram(MName, Val, Tags).
+    dogstatsd:histogram(MName, Val, Tags);
+metric_via_statsd(MName, Val, "timer", Tags) when is_map(Tags) ->
+    dogstatsd:timer(MName, Val, Tags);
+metric_via_statsd(MName, Val, "set", Tags) when is_map(Tags) ->
+    dogstatsd:set(MName, Val, Tags).
 
 
 %%====================================================================
