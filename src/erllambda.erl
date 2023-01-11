@@ -143,9 +143,9 @@ metric(MName, Val, Type, Tags)
         andalso is_number(Val) ->
     case application:get_env(erllambda, metrics_method) of
         {ok, statsd} ->
-            metric_by_statsd(MName, Val, Type, Tags);
+            metric_via_statsd(MName, Val, Type, Tags);
         _ ->
-            metric_by_log(MName, Val, Type, Tags)
+            metric_via_log(MName, Val, Type, Tags)
     end.
 
 %%%---------------------------------------------------------------------------
@@ -391,7 +391,7 @@ one_line_it(Text) ->
 %% Sends metric via log message from lambda using following format
 %% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|#tag1:value,tag2
 %% where metric_type :: "count" | "gauge" | "histogram"
-metric_by_log(MName, Val, Type, Tags) ->
+metric_via_log(MName, Val, Type, Tags) ->
     NewTags = "#" ++
         string:join(
             lists:map(
@@ -415,14 +415,13 @@ metric_by_log(MName, Val, Type, Tags) ->
     message(Msg).
 
 %% Sends metric via statsd client
-metric_by_statsd(MName, Val, Type, Tags) ->
-    do_metric_by_statsd(MName, Val, Type, maps:from_list(Tags)).
-
-do_metric_by_statsd(MName, Val, "count", Tags) ->
+metric_via_statsd(MName, Val, Type, Tags) when is_list(Tags) ->
+    metric_via_statsd(MName, Val, Type, maps:from_list(Tags));
+metric_via_statsd(MName, Val, "count", Tags) when is_map(Tags) ->
     dogstatsd:counter(MName, Val, Tags);
-do_metric_by_statsd(MName, Val, "gauge", Tags) ->
+metric_via_statsd(MName, Val, "gauge", Tags) when is_map(Tags) ->
     dogstatsd:gauge(MName, Val, Tags);
-do_metric_by_statsd(MName, Val, "histogram", Tags) ->
+metric_via_statsd(MName, Val, "histogram", Tags) when is_map(Tags) ->
     dogstatsd:histogram(MName, Val, Tags).
 
 

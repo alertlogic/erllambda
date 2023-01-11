@@ -16,3 +16,4 @@ _checkouts
 *.tgz
 *.iml
 logs/*
+rebar.lock
