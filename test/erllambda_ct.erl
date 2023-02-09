@@ -56,6 +56,9 @@ record_to_map(R) when is_record(R, aws_config) ->
     record_to_map(R, Ks);
 record_to_map(R) when is_record(R, aws_assume_role) ->
     Ks = record_info(fields, aws_assume_role),
+    record_to_map(R, Ks);
+record_to_map(R) when is_record(R, hackney_client_options) ->
+    Ks = record_info(fields, hackney_client_options),
     record_to_map(R, Ks).
 
 record_to_map(Record, Ks) ->

@@ -72,6 +72,12 @@ start_link() ->
 init( [] ) ->
     ets:new( ?CACHE_NAME, [public, named_table, {keypos, #cv.key},
                            {read_concurrency, true}] ),
+    case application:get_env(erllambda, metrics_method) of
+        {ok, statsd} ->
+            application:ensure_all_started(dogstatsd);
+        _ ->
+            ok
+    end,
     {ok, #{waiters => dict:new(), processes => dict:new()}}.
 
 

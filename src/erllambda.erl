@@ -128,9 +128,8 @@ message_ctx( ReqId, Format, Values ) when is_binary(ReqId) ->
 %%%---------------------------------------------------------------------------
 %% @doc Send custom metrics to Datadog
 %%
-%% This function will send log message from lambda using following format
-%% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|#tag1:value,tag2
-%% where metric_type :: "count" | "gauge" | "histogram"
+%% This function will send metric via method defined in application config
+%% by <code>metrics_method</code> parameter.
 %%
 metric(MName) ->
     metric(MName, 1).
@@ -140,31 +139,13 @@ metric(MName, Val, Type) ->
     metric(MName, Val, Type, []).
 metric(MName, Val, Type, Tags)
         when is_list(MName)
-        andalso (Type == "count" orelse Type == "gauge" orelse Type == "histogram")
         andalso is_number(Val) ->
-    NewTags = "#" ++
-        string:join(
-            lists:map(
-                fun ({T,V}) ->
-                        erllambda_util:to_list(T) ++ ":" ++ erllambda_util:to_list(V);
-                    (OtherTag) ->
-                        erllambda_util:to_list(OtherTag)
-                end, Tags
-            ),
-            ","
-        ),
-    Ts = os:system_time(second),
-    Msg = string:join([
-        "MONITORING",
-        erllambda_util:to_list(Ts),
-        erllambda_util:to_list(Val),
-        Type,
-        MName,
-        NewTags
-    ], "|"),
-    message(Msg).
-
-
+    case application:get_env(erllambda, metrics_method) of
+        {ok, statsd} ->
+            metric_via_statsd(MName, Val, Type, Tags);
+        _ ->
+            metric_via_log(MName, Val, Type, Tags)
+    end.
 
 %%%---------------------------------------------------------------------------
 -spec get_remaining_ms(map()) -> pos_integer().
@@ -405,6 +386,50 @@ reformat([], _Width) ->
 
 one_line_it(Text) ->
     re:replace(string:trim(Text), "\r?\n\s*", " ", [{return,list},global,unicode]).
+
+%% Sends metric via log message from lambda using following format
+%% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|#tag1:value,tag2
+%% where metric_type :: "count" | "gauge" | "histogram"
+metric_via_log(MName, Val, Type, Tags) when (Type == "count" orelse Type == "gauge" orelse Type == "histogram") ->
+    NewTags = "#" ++
+        string:join(
+            lists:map(
+                fun ({T,V}) ->
+                    erllambda_util:to_list(T) ++ ":" ++ erllambda_util:to_list(V);
+                    (OtherTag) ->
+                        erllambda_util:to_list(OtherTag)
+                end, Tags
+            ),
+            ","
+        ),
+    Ts = os:system_time(second),
+    Msg = string:join([
+        "MONITORING",
+        erllambda_util:to_list(Ts),
+        erllambda_util:to_list(Val),
+        Type,
+        MName,
+        NewTags
+    ], "|"),
+    message(Msg).
+
+%% Sends metric via statsd client
+metric_via_statsd(MName, Val, Type, Tags) when is_list(Tags) ->
+    metric_via_statsd(MName, Val, Type, maps:from_list(Tags));
+metric_via_statsd(MName, Val, "count", Tags) when is_map(Tags) ->
+    %% When submitting metric via statsd 'count' type turns into 'rate' on Datadog side. Not to break existing metrics
+    %% history on switching between submission methods 'count' metrics are submitted as new ones with '.rate' ending.
+    dogstatsd:counter(MName ++ ".rate", Val, Tags);
+metric_via_statsd(MName, Val, "gauge", Tags) when is_map(Tags) ->
+    dogstatsd:gauge(MName, Val, Tags);
+metric_via_statsd(MName, Val, "histogram", Tags) when is_map(Tags) ->
+    dogstatsd:histogram(MName, Val, Tags);
+metric_via_statsd(MName, Val, "timer", Tags) when is_map(Tags) ->
+    dogstatsd:timer(MName, Val, Tags);
+metric_via_statsd(MName, Val, "set", Tags) when is_map(Tags) ->
+    dogstatsd:set(MName, Val, Tags);
+metric_via_statsd(MName, Val, "distribution", Tags) when is_map(Tags) ->
+    dogstatsd:distribution(MName, Val, Tags).
 
 
 %%====================================================================
