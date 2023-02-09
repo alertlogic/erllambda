@@ -427,7 +427,9 @@ metric_via_statsd(MName, Val, "histogram", Tags) when is_map(Tags) ->
 metric_via_statsd(MName, Val, "timer", Tags) when is_map(Tags) ->
     dogstatsd:timer(MName, Val, Tags);
 metric_via_statsd(MName, Val, "set", Tags) when is_map(Tags) ->
-    dogstatsd:set(MName, Val, Tags).
+    dogstatsd:set(MName, Val, Tags);
+metric_via_statsd(MName, Val, "distribution", Tags) when is_map(Tags) ->
+    dogstatsd:distribution(MName, Val, Tags).
 
 
 %%====================================================================
