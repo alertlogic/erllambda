@@ -389,8 +389,8 @@ one_line_it(Text) ->
 
 %% Sends metric via log message from lambda using following format
 %% MONITORING|unix_epoch_timestamp|metric_value|metric_type|my.metric.name|#tag1:value,tag2
-%% where metric_type :: "count" | "gauge" | "histogram"
-metric_via_log(MName, Val, Type, Tags) when (Type == "count" orelse Type == "gauge" orelse Type == "histogram") ->
+%% where metric_type :: "count" | "gauge" | "histogram" | "distribution"
+metric_via_log(MName, Val, Type, Tags) when (Type == "count" orelse Type == "gauge" orelse Type == "histogram" orelse Type == "distribution") ->
     NewTags = "#" ++
         string:join(
             lists:map(
