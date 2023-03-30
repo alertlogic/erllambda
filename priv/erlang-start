@@ -4,19 +4,12 @@ set -euo pipefail
 # uncomment to see all execution
 #set -x
 
-echo "creating necessary erllambda run dirs"
 export RUN_DIR="/tmp/erllambda_rundir"
 export VAR_DIR=${RUN_DIR}
 $(mkdir -p "${RUN_DIR}/cachefs")
 $(mkdir -p "${RUN_DIR}/checkpointfs")
 $(mkdir -p "${RUN_DIR}/tmpfs")
 $(mkdir -p "${RUN_DIR}/ramfs")
-
-echo "OpenSSL is $(openssl version)"
-# ciphers=$(openssl ciphers 'ALL:eNULL' | sed -e 's/:/ /g')
-# echo "OpenSSL cyphers are $ciphers"
-
-echo "starting ErlangVM"
 
 SCRIPT=$(readlink $0 || true)
 if [ -z $SCRIPT ]; then
@@ -70,8 +63,9 @@ set -- "$ERTS_DIR/bin/erlexec" -noshell -noinput -Bd \
      -config "$CONFIG_PATH" \
      -args_file "$VMARGS_PATH"
 
-date '+%T.%6N'
-echo "Exec: $@" -- ${1+$ARGS}
-echo "Root: $ROOTDIR"
+d=$(date '+%T.%6N')
+arch=$(uname -m)
+echo "Date: ${d} Root: $ROOTDIR Arch: ${arch} Exec: $@" -- ${1+$ARGS}
+
 cd $ROOTDIR
 exec "$@" -- ${1+$ARGS} 2>&1
