@@ -49,6 +49,13 @@ export BINDIR="$ERTS_DIR/bin"
 export EMU="beam"
 export LD_LIBRARY_PATH="${ERTS_DIR}/lib:${LD_LIBRARY_PATH}"
 
+# Newer versions of relx/rebar3 generate a start.boot file instead of a $REL_NAME.boot file
+# Note that the .boot suffix is not specified, so default to "start" if it exists, otherwise fall back to "$REL_NAME"
+BOOTFILE="start"
+if [ ! -f "$REL_DIR/start.boot" ]; then
+    BOOTFILE="$REL_NAME"
+fi
+
 # disable Erlang crash dumps and Linux core dumps
 export ERL_CRASH_DUMP="/dev/null"
 ulimit -c 0
@@ -57,7 +64,7 @@ ulimit -c 0
 ARGS="$@"
 
 set -- "$ERTS_DIR/bin/erlexec" -noshell -noinput -Bd \
-     -boot "$REL_DIR/$REL_NAME" \
+     -boot "$REL_DIR/$BOOTFILE" \
      -mode "$CODE_LOADING_MODE" \
      -boot_var ERTS_LIB_DIR "$ERTS_LIB_DIR" \
      -config "$CONFIG_PATH" \
